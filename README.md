@@ -1,4 +1,4 @@
-# @summits/omnichannel
+# @myvenus-summits/omnichannel
 
 Omnichannel messaging module for NestJS. Unified interface for WhatsApp, Instagram, LINE and more.
 
@@ -13,7 +13,7 @@ Omnichannel messaging module for NestJS. Unified interface for WhatsApp, Instagr
 ## Installation
 
 ```bash
-npm install @summits/omnichannel
+npm install github:myvenus-summits/omnichannel
 ```
 
 ### Peer Dependencies
@@ -30,7 +30,7 @@ npm install @nestjs/common @nestjs/core @nestjs/typeorm @nestjs/websockets @nest
 
 ```typescript
 import { Module } from '@nestjs/common';
-import { OmnichannelModule } from '@summits/omnichannel';
+import { OmnichannelModule } from '@myvenus-summits/omnichannel';
 
 @Module({
   imports: [
@@ -55,7 +55,7 @@ export class AppModule {}
 ```typescript
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { OmnichannelModule } from '@summits/omnichannel';
+import { OmnichannelModule } from '@myvenus-summits/omnichannel';
 
 @Module({
   imports: [
@@ -89,7 +89,7 @@ export class AppModule {}
 The module exports entities that you need to include in your TypeORM configuration:
 
 ```typescript
-import { OmnichannelEntities } from '@summits/omnichannel';
+import { OmnichannelEntities } from '@myvenus-summits/omnichannel';
 
 TypeOrmModule.forRoot({
   // ... your config
@@ -156,7 +156,7 @@ socket.on('conversation:update', (data) => {
 Implement the `ChannelAdapter` interface for custom channels:
 
 ```typescript
-import { ChannelAdapter } from '@summits/omnichannel';
+import { ChannelAdapter } from '@myvenus-summits/omnichannel';
 
 @Injectable()
 export class LineAdapter implements ChannelAdapter {
@@ -179,21 +179,6 @@ export class LineAdapter implements ChannelAdapter {
 | `appUrl` | `string` | - | Application URL for webhooks |
 | `enableWebSocket` | `boolean` | `true` | Enable WebSocket gateway |
 | `enableControllers` | `boolean` | `true` | Register REST controllers |
-
-## Publishing to GitHub Packages
-
-1. Create a GitHub Personal Access Token with `packages:write` scope
-
-2. Configure authentication:
-```bash
-# In your ~/.npmrc
-//npm.pkg.github.com/:_authToken=YOUR_TOKEN
-```
-
-3. Publish:
-```bash
-npm publish
-```
 
 ## Development
 
