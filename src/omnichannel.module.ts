@@ -19,6 +19,7 @@ import {
 
 // Adapters
 import { WhatsAppAdapter } from './adapters/whatsapp.adapter';
+import { InstagramAdapter } from './adapters/instagram.adapter';
 
 // Gateways
 import { OmnichannelGateway } from './gateways';
@@ -111,6 +112,7 @@ export class OmnichannelModule {
         WebhookService,
         QuickReplyService,
         WhatsAppAdapter,
+        InstagramAdapter,
         ...(options.enableWebSocket !== false ? [OmnichannelGateway] : []),
       ],
     };
@@ -141,6 +143,7 @@ export class OmnichannelModule {
       providers: [
         ...asyncProviders,
         WhatsAppAdapter,
+        InstagramAdapter,
         OmnichannelGateway,
         ConversationService,
         MessageService,
@@ -154,6 +157,7 @@ export class OmnichannelModule {
         WebhookService,
         QuickReplyService,
         WhatsAppAdapter,
+        InstagramAdapter,
         OmnichannelGateway,
       ],
     };
@@ -167,6 +171,7 @@ export class OmnichannelModule {
   ): Provider[] {
     const providers: Provider[] = [
       WhatsAppAdapter,
+      InstagramAdapter,
       ConversationService,
       MessageService,
       WebhookService,

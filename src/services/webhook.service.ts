@@ -1,6 +1,7 @@
 import { Injectable, Logger, Inject, Optional } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { WhatsAppAdapter } from '../adapters/whatsapp.adapter';
+import { InstagramAdapter } from '../adapters/instagram.adapter';
 import { OmnichannelGateway } from '../gateways/omnichannel.gateway';
 import { ConversationService } from './conversation.service';
 import { MessageService } from './message.service';
@@ -11,6 +12,7 @@ import {
   OMNICHANNEL_MODULE_OPTIONS,
   type OmnichannelModuleOptions,
 } from '../interfaces';
+import type { InstagramWebhookDto } from '../dto/instagram-webhook.dto';
 
 @Injectable()
 export class WebhookService {
@@ -24,6 +26,7 @@ export class WebhookService {
     private readonly options: OmnichannelModuleOptions | undefined,
     private readonly dataSource: DataSource,
     private readonly whatsappAdapter: WhatsAppAdapter,
+    private readonly instagramAdapter: InstagramAdapter,
     @Optional()
     private readonly omnichannelGateway: OmnichannelGateway | null,
     private readonly conversationService: ConversationService,
@@ -45,9 +48,29 @@ export class WebhookService {
     await this.processEvent(event, 'whatsapp');
   }
 
-  handleMetaWebhook(payload: unknown): void {
+  async handleMetaWebhook(payload: unknown): Promise<void> {
     this.logger.log('Processing Meta webhook');
-    this.logger.warn('Meta webhook handling not implemented yet');
+
+    const metaPayload = payload as { object?: string };
+
+    // Determine if this is Instagram or Messenger webhook
+    if (metaPayload.object === 'instagram') {
+      await this.handleInstagramWebhook(payload as InstagramWebhookDto);
+    } else {
+      this.logger.warn(`Unsupported Meta webhook object type: ${metaPayload.object}`);
+    }
+  }
+
+  async handleInstagramWebhook(payload: InstagramWebhookDto): Promise<void> {
+    this.logger.log('Processing Instagram webhook');
+
+    const event = this.instagramAdapter.parseWebhookPayload(payload);
+    if (!event) {
+      this.logger.warn('Could not parse Instagram webhook payload');
+      return;
+    }
+
+    await this.processEvent(event, 'instagram');
   }
 
   verifyMetaWebhook(verifyToken: string, challenge: string): string | null {
