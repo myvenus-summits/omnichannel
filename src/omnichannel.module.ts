@@ -18,6 +18,7 @@ import {
   MessageService,
   WebhookService,
   QuickReplyService,
+  TemplateService,
 } from './services';
 
 // Controllers
@@ -25,6 +26,7 @@ import {
   ConversationController,
   WebhookController,
   QuickReplyController,
+  TemplateController,
 } from './controllers';
 
 // Interfaces
@@ -34,6 +36,8 @@ import {
   MESSAGE_REPOSITORY,
   QUICK_REPLY_REPOSITORY,
   CONTACT_CHANNEL_REPOSITORY,
+  MESSAGE_TEMPLATE_REPOSITORY,
+  TEMPLATE_HISTORY_REPOSITORY,
   OmnichannelModuleOptions,
   OmnichannelModuleAsyncOptions,
   OmnichannelOptionsFactory,
@@ -126,6 +130,7 @@ export class OmnichannelModule {
         ConversationController,
         WebhookController,
         QuickReplyController,
+        TemplateController,
       ],
       providers: [
         ...asyncProviders,
@@ -167,6 +172,20 @@ export class OmnichannelModule {
           },
           inject: [OMNICHANNEL_MODULE_OPTIONS],
         },
+        {
+          provide: MESSAGE_TEMPLATE_REPOSITORY,
+          useFactory: (opts: OmnichannelModuleOptions) => {
+            return opts.repositories?.messageTemplateRepository ?? null;
+          },
+          inject: [OMNICHANNEL_MODULE_OPTIONS],
+        },
+        {
+          provide: TEMPLATE_HISTORY_REPOSITORY,
+          useFactory: (opts: OmnichannelModuleOptions) => {
+            return opts.repositories?.templateHistoryRepository ?? null;
+          },
+          inject: [OMNICHANNEL_MODULE_OPTIONS],
+        },
         WhatsAppAdapter,
         InstagramAdapter,
         OmnichannelGateway,
@@ -174,6 +193,7 @@ export class OmnichannelModule {
         MessageService,
         WebhookService,
         QuickReplyService,
+        TemplateService,
         ...(options.extraProviders ?? []),
       ],
       exports: [
@@ -182,10 +202,13 @@ export class OmnichannelModule {
         MESSAGE_REPOSITORY,
         QUICK_REPLY_REPOSITORY,
         CONTACT_CHANNEL_REPOSITORY,
+        MESSAGE_TEMPLATE_REPOSITORY,
+        TEMPLATE_HISTORY_REPOSITORY,
         ConversationService,
         MessageService,
         WebhookService,
         QuickReplyService,
+        TemplateService,
         WhatsAppAdapter,
         InstagramAdapter,
         OmnichannelGateway,

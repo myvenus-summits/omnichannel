@@ -180,8 +180,8 @@ export class WebhookService {
 
     // WebSocket으로 실시간 알림 전송
     this.logger.log(`🔔 Emitting WebSocket events for conversation ${updatedConversation.id}`);
-    this.omnichannelGateway.emitNewMessage(updatedConversation.id, message);
-    this.omnichannelGateway.emitConversationUpdate(updatedConversation);
+    this.omnichannelGateway?.emitNewMessage(updatedConversation.id, message);
+    this.omnichannelGateway?.emitConversationUpdate(updatedConversation);
   }
 
   private async handleStatusUpdate(
@@ -189,14 +189,30 @@ export class WebhookService {
   ): Promise<void> {
     if (!event.status) return;
 
-    await this.messageService.updateStatus(
-      event.status.messageId,
-      event.status.status,
-    );
+    const { messageId, status } = event.status;
+
+    // 메시지 상태 업데이트
+    await this.messageService.updateStatus(messageId, status);
 
     this.logger.log(
-      `Message status updated: ${event.status.messageId} -> ${event.status.status}`,
+      `Message status updated: ${messageId} -> ${status}`,
     );
+
+    // 메시지 조회해서 conversationId 가져오기
+    const message = await this.messageRepository.findByChannelMessageId(messageId);
+    
+    if (message && this.omnichannelGateway) {
+      // WebSocket으로 상태 변경 브로드캐스트
+      this.omnichannelGateway.emitMessageStatusUpdate(
+        message.conversationId,
+        messageId,
+        status,
+      );
+      
+      this.logger.log(
+        `🔔 Broadcast message status update: ${messageId} -> ${status}`,
+      );
+    }
   }
 
   private async handleConversationCreated(
