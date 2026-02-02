@@ -3,10 +3,10 @@ import { CreateQuickReplyDto, UpdateQuickReplyDto, QuickReplyQueryDto } from '..
 export declare class QuickReplyController {
     private readonly quickReplyService;
     constructor(quickReplyService: QuickReplyService);
-    findAll(query: QuickReplyQueryDto): Promise<import("..").QuickReply[]>;
-    findOne(id: number): Promise<import("..").QuickReply>;
-    create(dto: CreateQuickReplyDto): Promise<import("..").QuickReply>;
-    update(id: number, dto: UpdateQuickReplyDto): Promise<import("..").QuickReply>;
+    findAll(query: QuickReplyQueryDto): Promise<import("..").IQuickReply[]>;
+    findOne(id: number): Promise<import("..").IQuickReply>;
+    create(dto: CreateQuickReplyDto): Promise<import("..").IQuickReply>;
+    update(id: number, dto: UpdateQuickReplyDto): Promise<import("..").IQuickReply>;
     delete(id: number): Promise<void>;
     incrementUsage(id: number): Promise<void>;
 }

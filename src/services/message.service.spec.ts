@@ -2,30 +2,16 @@ import { MessageService } from './message.service';
 import { WhatsAppAdapter } from '../adapters/whatsapp.adapter';
 import { ConversationService } from './conversation.service';
 import { NotFoundException } from '@nestjs/common';
-import type { Repository, SelectQueryBuilder } from 'typeorm';
-import type { Message } from '../entities/message.entity';
-import type { Conversation } from '../entities/conversation.entity';
+import type { IMessageRepository, IMessage } from '../interfaces';
 
-// Mock query builder
-const mockQueryBuilder = {
-  where: jest.fn().mockReturnThis(),
-  andWhere: jest.fn().mockReturnThis(),
-  orderBy: jest.fn().mockReturnThis(),
-  take: jest.fn().mockReturnThis(),
-  getMany: jest.fn(),
-};
-
-// Mock Message repository
-const mockMessageRepository = {
-  createQueryBuilder: jest.fn().mockReturnValue(mockQueryBuilder),
+// Mock Message repository (implementing IMessageRepository interface)
+const mockMessageRepository: jest.Mocked<IMessageRepository> = {
+  findByConversation: jest.fn(),
   findOne: jest.fn(),
+  findByChannelMessageId: jest.fn(),
   create: jest.fn(),
-  save: jest.fn(),
-  update: jest.fn(),
+  updateStatus: jest.fn(),
 };
-
-// Mock Conversation repository
-const mockConversationRepository = {};
 
 // Mock WhatsApp adapter
 const mockWhatsAppAdapter = {
@@ -46,8 +32,7 @@ describe('MessageService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     service = new MessageService(
-      mockMessageRepository as unknown as Repository<Message>,
-      mockConversationRepository as unknown as Repository<Conversation>,
+      mockMessageRepository,
       mockWhatsAppAdapter as unknown as WhatsAppAdapter,
       mockConversationService as unknown as ConversationService,
     );
@@ -55,59 +40,77 @@ describe('MessageService', () => {
 
   describe('findByConversation', () => {
     it('should return messages for a conversation', async () => {
-      const mockMessages = [
-        { id: 1, contentText: 'First', createdAt: new Date('2024-01-30T10:00:00Z') },
-        { id: 2, contentText: 'Second', createdAt: new Date('2024-01-30T10:01:00Z') },
+      const mockMessages: IMessage[] = [
+        {
+          id: 1,
+          conversationId: 1,
+          channelMessageId: 'MSG1',
+          direction: 'inbound',
+          senderName: null,
+          senderUserId: null,
+          contentType: 'text',
+          contentText: 'First',
+          contentMediaUrl: null,
+          status: 'delivered',
+          metadata: null,
+          createdAt: new Date('2024-01-30T10:00:00Z'),
+        },
+        {
+          id: 2,
+          conversationId: 1,
+          channelMessageId: 'MSG2',
+          direction: 'inbound',
+          senderName: null,
+          senderUserId: null,
+          contentType: 'text',
+          contentText: 'Second',
+          contentMediaUrl: null,
+          status: 'delivered',
+          metadata: null,
+          createdAt: new Date('2024-01-30T10:01:00Z'),
+        },
       ];
 
-      mockQueryBuilder.getMany.mockResolvedValue(mockMessages);
+      mockMessageRepository.findByConversation.mockResolvedValue(mockMessages);
 
       const result = await service.findByConversation(1, { limit: 50 });
 
-      expect(mockQueryBuilder.where).toHaveBeenCalledWith(
-        'message.conversationId = :conversationId',
-        { conversationId: 1 },
-      );
-      expect(mockQueryBuilder.orderBy).toHaveBeenCalledWith('message.createdAt', 'DESC');
-      expect(mockQueryBuilder.take).toHaveBeenCalledWith(50);
-      expect(result).toEqual(mockMessages.reverse());
+      expect(mockMessageRepository.findByConversation).toHaveBeenCalledWith(1, { limit: 50 });
+      expect(result).toEqual(mockMessages);
     });
 
     it('should apply before cursor if provided', async () => {
-      const beforeMessage = {
-        id: 5,
-        createdAt: new Date('2024-01-30T10:05:00Z'),
-      };
-
-      mockMessageRepository.findOne.mockResolvedValue(beforeMessage);
-      mockQueryBuilder.getMany.mockResolvedValue([]);
+      mockMessageRepository.findByConversation.mockResolvedValue([]);
 
       await service.findByConversation(1, { before: '5' });
 
-      expect(mockMessageRepository.findOne).toHaveBeenCalledWith({
-        where: { id: 5 },
-      });
-      expect(mockQueryBuilder.andWhere).toHaveBeenCalledWith(
-        'message.createdAt < :beforeDate',
-        { beforeDate: beforeMessage.createdAt },
-      );
+      expect(mockMessageRepository.findByConversation).toHaveBeenCalledWith(1, { before: '5' });
     });
 
-    it('should use default limit of 50', async () => {
-      mockQueryBuilder.getMany.mockResolvedValue([]);
+    it('should use default options when not provided', async () => {
+      mockMessageRepository.findByConversation.mockResolvedValue([]);
 
       await service.findByConversation(1);
 
-      expect(mockQueryBuilder.take).toHaveBeenCalledWith(50);
+      expect(mockMessageRepository.findByConversation).toHaveBeenCalledWith(1, undefined);
     });
   });
 
   describe('findOne', () => {
     it('should return a message by id', async () => {
-      const mockMessage = {
+      const mockMessage: IMessage = {
         id: 1,
+        conversationId: 1,
+        channelMessageId: 'MSG1',
+        direction: 'inbound',
+        senderName: null,
+        senderUserId: null,
+        contentType: 'text',
         contentText: 'Hello',
-        conversation: { id: 1 },
+        contentMediaUrl: null,
+        status: 'delivered',
+        metadata: null,
+        createdAt: new Date(),
       };
 
       mockMessageRepository.findOne.mockResolvedValue(mockMessage);
@@ -115,10 +118,7 @@ describe('MessageService', () => {
       const result = await service.findOne(1);
 
       expect(result).toEqual(mockMessage);
-      expect(mockMessageRepository.findOne).toHaveBeenCalledWith({
-        where: { id: 1 },
-        relations: ['conversation'],
-      });
+      expect(mockMessageRepository.findOne).toHaveBeenCalledWith(1);
     });
 
     it('should throw NotFoundException if message not found', async () => {
@@ -131,23 +131,34 @@ describe('MessageService', () => {
 
   describe('create', () => {
     it('should create and save a message', async () => {
-      const messageData = {
+      const messageData: Partial<IMessage> = {
         conversationId: 1,
         channelMessageId: 'MSG123',
-        direction: 'inbound' as const,
-        contentType: 'text' as const,
+        direction: 'inbound',
+        contentType: 'text',
         contentText: 'Hello',
       };
 
-      const createdMessage = { id: 1, ...messageData };
+      const createdMessage: IMessage = {
+        id: 1,
+        conversationId: 1,
+        channelMessageId: 'MSG123',
+        direction: 'inbound',
+        senderName: null,
+        senderUserId: null,
+        contentType: 'text',
+        contentText: 'Hello',
+        contentMediaUrl: null,
+        status: 'delivered',
+        metadata: null,
+        createdAt: new Date(),
+      };
 
-      mockMessageRepository.create.mockReturnValue(createdMessage);
-      mockMessageRepository.save.mockResolvedValue(createdMessage);
+      mockMessageRepository.create.mockResolvedValue(createdMessage);
 
       const result = await service.create(messageData);
 
       expect(mockMessageRepository.create).toHaveBeenCalledWith(messageData);
-      expect(mockMessageRepository.save).toHaveBeenCalledWith(createdMessage);
       expect(result).toEqual(createdMessage);
     });
   });
@@ -169,16 +180,22 @@ describe('MessageService', () => {
         channelMessageId: 'SM123456',
       });
 
-      const savedMessage = {
+      const savedMessage: IMessage = {
         id: 1,
+        conversationId: 1,
         channelMessageId: 'SM123456',
         direction: 'outbound',
+        senderName: null,
+        senderUserId: null,
         contentType: 'text',
         contentText: 'Hello customer',
+        contentMediaUrl: null,
+        status: 'sent',
+        metadata: null,
+        createdAt: new Date(),
       };
 
-      mockMessageRepository.create.mockReturnValue(savedMessage);
-      mockMessageRepository.save.mockResolvedValue(savedMessage);
+      mockMessageRepository.create.mockResolvedValue(savedMessage);
 
       const result = await service.sendMessage(1, {
         contentType: 'text',
@@ -199,16 +216,22 @@ describe('MessageService', () => {
         channelMessageId: 'SM_IMG123',
       });
 
-      const savedMessage = {
+      const savedMessage: IMessage = {
         id: 2,
+        conversationId: 1,
         channelMessageId: 'SM_IMG123',
         direction: 'outbound',
+        senderName: null,
+        senderUserId: null,
         contentType: 'image',
+        contentText: null,
         contentMediaUrl: 'https://example.com/image.jpg',
+        status: 'sent',
+        metadata: null,
+        createdAt: new Date(),
       };
 
-      mockMessageRepository.create.mockReturnValue(savedMessage);
-      mockMessageRepository.save.mockResolvedValue(savedMessage);
+      mockMessageRepository.create.mockResolvedValue(savedMessage);
 
       await service.sendMessage(1, {
         contentType: 'image',
@@ -231,15 +254,22 @@ describe('MessageService', () => {
         channelMessageId: 'SM_TPL123',
       });
 
-      const savedMessage = {
+      const savedMessage: IMessage = {
         id: 3,
+        conversationId: 1,
         channelMessageId: 'SM_TPL123',
         direction: 'outbound',
+        senderName: null,
+        senderUserId: null,
         contentType: 'template',
+        contentText: null,
+        contentMediaUrl: null,
+        status: 'sent',
+        metadata: null,
+        createdAt: new Date(),
       };
 
-      mockMessageRepository.create.mockReturnValue(savedMessage);
-      mockMessageRepository.save.mockResolvedValue(savedMessage);
+      mockMessageRepository.create.mockResolvedValue(savedMessage);
 
       await service.sendMessage(1, {
         contentType: 'template',
@@ -274,14 +304,22 @@ describe('MessageService', () => {
         channelMessageId: 'SM_USER123',
       });
 
-      const savedMessage = {
+      const savedMessage: IMessage = {
         id: 4,
+        conversationId: 1,
         channelMessageId: 'SM_USER123',
+        direction: 'outbound',
+        senderName: null,
         senderUserId: 42,
+        contentType: 'text',
+        contentText: 'From agent',
+        contentMediaUrl: null,
+        status: 'sent',
+        metadata: null,
+        createdAt: new Date(),
       };
 
-      mockMessageRepository.create.mockReturnValue(savedMessage);
-      mockMessageRepository.save.mockResolvedValue(savedMessage);
+      mockMessageRepository.create.mockResolvedValue(savedMessage);
 
       await service.sendMessage(
         1,
@@ -302,15 +340,22 @@ describe('MessageService', () => {
         channelMessageId: 'SM_MEDIA123',
       });
 
-      const savedMessage = {
+      const savedMessage: IMessage = {
         id: 5,
+        conversationId: 1,
         channelMessageId: 'SM_MEDIA123',
+        direction: 'outbound',
+        senderName: null,
+        senderUserId: null,
         contentType: 'file',
+        contentText: null,
         contentMediaUrl: 'https://example.com/doc.pdf',
+        status: 'sent',
+        metadata: null,
+        createdAt: new Date(),
       };
 
-      mockMessageRepository.create.mockReturnValue(savedMessage);
-      mockMessageRepository.save.mockResolvedValue(savedMessage);
+      mockMessageRepository.create.mockResolvedValue(savedMessage);
 
       await service.sendMessage(1, {
         contentType: 'file',
@@ -337,11 +382,24 @@ describe('MessageService', () => {
     };
 
     it('should create a message from webhook data', async () => {
-      mockMessageRepository.findOne.mockResolvedValue(null);
+      mockMessageRepository.findByChannelMessageId.mockResolvedValue(null);
 
-      const createdMessage = { id: 1, ...webhookData };
-      mockMessageRepository.create.mockReturnValue(createdMessage);
-      mockMessageRepository.save.mockResolvedValue(createdMessage);
+      const createdMessage: IMessage = {
+        id: 1,
+        conversationId: 1,
+        channelMessageId: 'WH_MSG123',
+        direction: 'inbound',
+        senderName: 'Customer',
+        senderUserId: null,
+        contentType: 'text',
+        contentText: 'Hello from webhook',
+        contentMediaUrl: null,
+        status: 'delivered',
+        metadata: { source: 'whatsapp' },
+        createdAt: new Date(),
+      };
+
+      mockMessageRepository.create.mockResolvedValue(createdMessage);
 
       const result = await service.createFromWebhook(1, webhookData);
 
@@ -355,8 +413,22 @@ describe('MessageService', () => {
     });
 
     it('should return existing message if already exists', async () => {
-      const existingMessage = { id: 99, channelMessageId: 'WH_MSG123' };
-      mockMessageRepository.findOne.mockResolvedValue(existingMessage);
+      const existingMessage: IMessage = {
+        id: 99,
+        conversationId: 1,
+        channelMessageId: 'WH_MSG123',
+        direction: 'inbound',
+        senderName: 'Customer',
+        senderUserId: null,
+        contentType: 'text',
+        contentText: 'Hello from webhook',
+        contentMediaUrl: null,
+        status: 'delivered',
+        metadata: null,
+        createdAt: new Date(),
+      };
+
+      mockMessageRepository.findByChannelMessageId.mockResolvedValue(existingMessage);
 
       const result = await service.createFromWebhook(1, webhookData);
 
@@ -365,13 +437,25 @@ describe('MessageService', () => {
     });
 
     it('should not increment unread for outbound messages', async () => {
-      mockMessageRepository.findOne.mockResolvedValue(null);
+      mockMessageRepository.findByChannelMessageId.mockResolvedValue(null);
 
       const outboundData = { ...webhookData, direction: 'outbound' as const };
-      const createdMessage = { id: 2, ...outboundData };
+      const createdMessage: IMessage = {
+        id: 2,
+        conversationId: 1,
+        channelMessageId: 'WH_MSG123',
+        direction: 'outbound',
+        senderName: 'Agent',
+        senderUserId: null,
+        contentType: 'text',
+        contentText: 'Hello from webhook',
+        contentMediaUrl: null,
+        status: 'sent',
+        metadata: null,
+        createdAt: new Date(),
+      };
 
-      mockMessageRepository.create.mockReturnValue(createdMessage);
-      mockMessageRepository.save.mockResolvedValue(createdMessage);
+      mockMessageRepository.create.mockResolvedValue(createdMessage);
 
       await service.createFromWebhook(1, outboundData);
 
@@ -379,7 +463,7 @@ describe('MessageService', () => {
     });
 
     it('should use media placeholder for messages without text', async () => {
-      mockMessageRepository.findOne.mockResolvedValue(null);
+      mockMessageRepository.findByChannelMessageId.mockResolvedValue(null);
 
       const mediaData = {
         ...webhookData,
@@ -387,10 +471,22 @@ describe('MessageService', () => {
         contentText: undefined,
         contentMediaUrl: 'https://example.com/image.jpg',
       };
-      const createdMessage = { id: 3, ...mediaData };
+      const createdMessage: IMessage = {
+        id: 3,
+        conversationId: 1,
+        channelMessageId: 'WH_MSG123',
+        direction: 'inbound',
+        senderName: 'Customer',
+        senderUserId: null,
+        contentType: 'image',
+        contentText: null,
+        contentMediaUrl: 'https://example.com/image.jpg',
+        status: 'delivered',
+        metadata: null,
+        createdAt: new Date(),
+      };
 
-      mockMessageRepository.create.mockReturnValue(createdMessage);
-      mockMessageRepository.save.mockResolvedValue(createdMessage);
+      mockMessageRepository.create.mockResolvedValue(createdMessage);
 
       await service.createFromWebhook(1, mediaData);
 
@@ -406,28 +502,19 @@ describe('MessageService', () => {
     it('should update message status', async () => {
       await service.updateStatus('MSG123', 'delivered');
 
-      expect(mockMessageRepository.update).toHaveBeenCalledWith(
-        { channelMessageId: 'MSG123' },
-        { status: 'delivered' },
-      );
+      expect(mockMessageRepository.updateStatus).toHaveBeenCalledWith('MSG123', 'delivered');
     });
 
     it('should handle read status', async () => {
       await service.updateStatus('MSG456', 'read');
 
-      expect(mockMessageRepository.update).toHaveBeenCalledWith(
-        { channelMessageId: 'MSG456' },
-        { status: 'read' },
-      );
+      expect(mockMessageRepository.updateStatus).toHaveBeenCalledWith('MSG456', 'read');
     });
 
     it('should handle sent status', async () => {
       await service.updateStatus('MSG789', 'sent');
 
-      expect(mockMessageRepository.update).toHaveBeenCalledWith(
-        { channelMessageId: 'MSG789' },
-        { status: 'sent' },
-      );
+      expect(mockMessageRepository.updateStatus).toHaveBeenCalledWith('MSG789', 'sent');
     });
   });
 });

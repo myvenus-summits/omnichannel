@@ -1,9 +1,7 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { Message } from '../entities/message.entity';
-import { Conversation } from '../entities/conversation.entity';
+import { Injectable, Logger, NotFoundException, Inject } from '@nestjs/common';
 import type { CreateMessageDto } from '../dto';
+import type { IMessage, IMessageRepository } from '../interfaces';
+import { MESSAGE_REPOSITORY } from '../interfaces';
 import { WhatsAppAdapter } from '../adapters/whatsapp.adapter';
 import { ConversationService } from './conversation.service';
 import type { MessageDirection, MessageStatus, SendMessageResult } from '../types';
@@ -13,10 +11,8 @@ export class MessageService {
   private readonly logger = new Logger(MessageService.name);
 
   constructor(
-    @InjectRepository(Message)
-    private readonly messageRepository: Repository<Message>,
-    @InjectRepository(Conversation)
-    private readonly conversationRepository: Repository<Conversation>,
+    @Inject(MESSAGE_REPOSITORY)
+    private readonly messageRepository: IMessageRepository,
     private readonly whatsappAdapter: WhatsAppAdapter,
     private readonly conversationService: ConversationService,
   ) {}
@@ -24,39 +20,12 @@ export class MessageService {
   async findByConversation(
     conversationId: number,
     options?: { limit?: number; before?: string },
-  ) {
-    const queryBuilder = this.messageRepository
-      .createQueryBuilder('message')
-      .where('message.conversationId = :conversationId', { conversationId })
-      .orderBy('message.createdAt', 'DESC');
-
-    if (options?.before) {
-      const beforeMessage = await this.messageRepository.findOne({
-        where: { id: Number(options.before) },
-      });
-      if (beforeMessage) {
-        queryBuilder.andWhere('message.createdAt < :beforeDate', {
-          beforeDate: beforeMessage.createdAt,
-        });
-      }
-    }
-
-    if (options?.limit) {
-      queryBuilder.take(options.limit);
-    } else {
-      queryBuilder.take(50);
-    }
-
-    const messages = await queryBuilder.getMany();
-
-    return messages.reverse();
+  ): Promise<IMessage[]> {
+    return this.messageRepository.findByConversation(conversationId, options);
   }
 
-  async findOne(id: number): Promise<Message> {
-    const message = await this.messageRepository.findOne({
-      where: { id },
-      relations: ['conversation'],
-    });
+  async findOne(id: number): Promise<IMessage> {
+    const message = await this.messageRepository.findOne(id);
 
     if (!message) {
       throw new NotFoundException(`Message #${id} not found`);
@@ -65,16 +34,15 @@ export class MessageService {
     return message;
   }
 
-  async create(data: Partial<Message>): Promise<Message> {
-    const message = this.messageRepository.create(data);
-    return this.messageRepository.save(message);
+  async create(data: Partial<IMessage>): Promise<IMessage> {
+    return this.messageRepository.create(data);
   }
 
   async sendMessage(
     conversationId: number,
     dto: CreateMessageDto,
     senderUserId?: number,
-  ): Promise<Message> {
+  ): Promise<IMessage> {
     const conversation = await this.conversationService.findOne(conversationId);
 
     let result: SendMessageResult;
@@ -111,9 +79,11 @@ export class MessageService {
       direction: 'outbound',
       senderUserId,
       contentType: dto.contentType,
-      contentText: dto.contentText,
-      contentMediaUrl: dto.contentMediaUrl,
+      contentText: dto.contentText ?? null,
+      contentMediaUrl: dto.contentMediaUrl ?? null,
       status: 'sent',
+      senderName: null,
+      metadata: null,
     });
 
     await this.conversationService.updateLastMessage(
@@ -137,10 +107,10 @@ export class MessageService {
       timestamp: Date;
       metadata?: Record<string, unknown>;
     },
-  ): Promise<Message> {
-    const existing = await this.messageRepository.findOne({
-      where: { channelMessageId: data.channelMessageId },
-    });
+  ): Promise<IMessage> {
+    const existing = await this.messageRepository.findByChannelMessageId(
+      data.channelMessageId,
+    );
 
     if (existing) {
       this.logger.log(`Message ${data.channelMessageId} already exists`);
@@ -151,12 +121,13 @@ export class MessageService {
       conversationId,
       channelMessageId: data.channelMessageId,
       direction: data.direction,
-      senderName: data.senderName,
-      contentType: data.contentType as Message['contentType'],
-      contentText: data.contentText,
-      contentMediaUrl: data.contentMediaUrl,
+      senderName: data.senderName ?? null,
+      contentType: data.contentType as IMessage['contentType'],
+      contentText: data.contentText ?? null,
+      contentMediaUrl: data.contentMediaUrl ?? null,
       status: 'delivered',
-      metadata: data.metadata,
+      metadata: data.metadata ?? null,
+      senderUserId: null,
     });
 
     if (data.direction === 'inbound') {
@@ -176,6 +147,6 @@ export class MessageService {
     channelMessageId: string,
     status: MessageStatus,
   ): Promise<void> {
-    await this.messageRepository.update({ channelMessageId }, { status });
+    await this.messageRepository.updateStatus(channelMessageId, status);
   }
 }

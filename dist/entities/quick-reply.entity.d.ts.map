@@ -1,1 +1,0 @@
-{"version":3,"file":"quick-reply.entity.d.ts","sourceRoot":"","sources":["../../src/entities/quick-reply.entity.ts"],"names":[],"mappings":"AAQA,qBACa,UAAU;IAErB,EAAE,EAAG,MAAM,CAAC;IAGZ,KAAK,EAAG,MAAM,CAAC;IAGf,OAAO,EAAG,MAAM,CAAC;IAGjB,QAAQ,EAAG,MAAM,GAAG,IAAI,CAAC;IAGzB,UAAU,EAAG,MAAM,CAAC;IAGpB,QAAQ,EAAG,OAAO,CAAC;IAGnB,SAAS,EAAG,IAAI,CAAC;IAGjB,SAAS,EAAG,IAAI,CAAC;CAClB"}

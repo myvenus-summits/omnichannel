@@ -15,17 +15,15 @@ var WebhookService_1;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.WebhookService = void 0;
 const common_1 = require("@nestjs/common");
-const typeorm_1 = require("typeorm");
 const whatsapp_adapter_1 = require("../adapters/whatsapp.adapter");
 const instagram_adapter_1 = require("../adapters/instagram.adapter");
 const conversation_service_1 = require("./conversation.service");
 const message_service_1 = require("./message.service");
-const conversation_entity_1 = require("../entities/conversation.entity");
-const message_entity_1 = require("../entities/message.entity");
 const interfaces_1 = require("../interfaces");
 let WebhookService = WebhookService_1 = class WebhookService {
     options;
-    dataSource;
+    conversationRepository;
+    messageRepository;
     whatsappAdapter;
     instagramAdapter;
     omnichannelGateway;
@@ -34,9 +32,10 @@ let WebhookService = WebhookService_1 = class WebhookService {
     logger = new common_1.Logger(WebhookService_1.name);
     appUrl;
     metaWebhookVerifyToken;
-    constructor(options, dataSource, whatsappAdapter, instagramAdapter, omnichannelGateway, conversationService, messageService) {
+    constructor(options, conversationRepository, messageRepository, whatsappAdapter, instagramAdapter, omnichannelGateway, conversationService, messageService) {
         this.options = options;
-        this.dataSource = dataSource;
+        this.conversationRepository = conversationRepository;
+        this.messageRepository = messageRepository;
         this.whatsappAdapter = whatsappAdapter;
         this.instagramAdapter = instagramAdapter;
         this.omnichannelGateway = omnichannelGateway;
@@ -98,59 +97,58 @@ let WebhookService = WebhookService_1 = class WebhookService {
     async handleMessageEvent(event, channel) {
         if (!event.message)
             return;
-        const result = await this.dataSource.transaction(async (manager) => {
-            const conversationRepo = manager.getRepository(conversation_entity_1.Conversation);
-            const messageRepo = manager.getRepository(message_entity_1.Message);
-            let conversation = await conversationRepo.findOne({
-                where: { channelConversationId: event.channelConversationId },
+        // Find or create conversation
+        let conversation = await this.conversationRepository.findByChannelConversationId(event.channelConversationId);
+        const isNewConversation = !conversation;
+        if (!conversation) {
+            conversation = await this.conversationRepository.create({
+                channel,
+                channelConversationId: event.channelConversationId,
+                contactIdentifier: event.contactIdentifier,
+                contactName: event.contactName ?? null,
+                status: 'open',
+                tags: [],
+                assignedUserId: null,
+                unreadCount: 0,
+                lastMessageAt: null,
+                lastMessagePreview: null,
+                metadata: null,
             });
-            const isNewConversation = !conversation;
-            if (!conversation) {
-                conversation = conversationRepo.create({
-                    channel,
-                    channelConversationId: event.channelConversationId,
-                    contactIdentifier: event.contactIdentifier,
-                    contactName: event.contactName,
-                    status: 'open',
-                });
-                conversation = await conversationRepo.save(conversation);
-                this.logger.log(`Created new conversation: ${conversation.id}`);
-            }
-            const message = messageRepo.create({
-                conversation,
-                conversationId: conversation.id,
-                channelMessageId: event.message.channelMessageId,
-                direction: event.message.direction,
-                senderName: event.message.senderName ?? null,
-                contentType: event.message.contentType,
-                contentText: event.message.contentText ?? null,
-                contentMediaUrl: event.message.contentMediaUrl ?? null,
-                status: event.message.direction === 'inbound' ? 'delivered' : 'sent',
-                metadata: event.message.metadata ?? null,
-            });
-            const savedMessage = await messageRepo.save(message);
-            const newUnreadCount = event.message.direction === 'inbound'
-                ? (conversation.unreadCount ?? 0) + 1
-                : conversation.unreadCount ?? 0;
-            await conversationRepo.update(conversation.id, {
-                lastMessageAt: event.message.timestamp,
-                lastMessagePreview: event.message.contentText?.substring(0, 100) ?? '[미디어]',
-                unreadCount: newUnreadCount,
-            });
-            const updatedConversation = await conversationRepo.findOne({
-                where: { id: conversation.id },
-            });
-            this.logger.log(`Message saved: ${event.message.channelMessageId} in conversation ${conversation.id}`);
-            return {
-                conversation: updatedConversation,
-                message: savedMessage,
-                isNewConversation,
-            };
+            this.logger.log(`Created new conversation: ${conversation.id}`);
+        }
+        // Check if message already exists
+        const existingMessage = await this.messageRepository.findByChannelMessageId(event.message.channelMessageId);
+        if (existingMessage) {
+            this.logger.log(`Message ${event.message.channelMessageId} already exists`);
+            return;
+        }
+        // Create message
+        const message = await this.messageRepository.create({
+            conversationId: conversation.id,
+            channelMessageId: event.message.channelMessageId,
+            direction: event.message.direction,
+            senderName: event.message.senderName ?? null,
+            senderUserId: null,
+            contentType: event.message.contentType,
+            contentText: event.message.contentText ?? null,
+            contentMediaUrl: event.message.contentMediaUrl ?? null,
+            status: event.message.direction === 'inbound' ? 'delivered' : 'sent',
+            metadata: event.message.metadata ?? null,
         });
+        // Update conversation
+        const newUnreadCount = event.message.direction === 'inbound'
+            ? (conversation.unreadCount ?? 0) + 1
+            : conversation.unreadCount ?? 0;
+        const updatedConversation = await this.conversationRepository.update(conversation.id, {
+            lastMessageAt: event.message.timestamp,
+            lastMessagePreview: event.message.contentText?.substring(0, 100) ?? '[미디어]',
+            unreadCount: newUnreadCount,
+        });
+        this.logger.log(`Message saved: ${event.message.channelMessageId} in conversation ${conversation.id}`);
         // WebSocket으로 실시간 알림 전송
         if (this.omnichannelGateway) {
-            this.omnichannelGateway.emitNewMessage(result.conversation.id, result.message);
-            this.omnichannelGateway.emitConversationUpdate(result.conversation);
+            this.omnichannelGateway.emitNewMessage(updatedConversation.id, message);
+            this.omnichannelGateway.emitConversationUpdate(updatedConversation);
         }
     }
     async handleStatusUpdate(event) {
@@ -177,9 +175,10 @@ exports.WebhookService = WebhookService = WebhookService_1 = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, common_1.Optional)()),
     __param(0, (0, common_1.Inject)(interfaces_1.OMNICHANNEL_MODULE_OPTIONS)),
-    __param(4, (0, common_1.Optional)()),
-    __metadata("design:paramtypes", [Object, typeorm_1.DataSource,
-        whatsapp_adapter_1.WhatsAppAdapter,
+    __param(1, (0, common_1.Inject)(interfaces_1.CONVERSATION_REPOSITORY)),
+    __param(2, (0, common_1.Inject)(interfaces_1.MESSAGE_REPOSITORY)),
+    __param(5, (0, common_1.Optional)()),
+    __metadata("design:paramtypes", [Object, Object, Object, whatsapp_adapter_1.WhatsAppAdapter,
         instagram_adapter_1.InstagramAdapter, Object, conversation_service_1.ConversationService,
         message_service_1.MessageService])
 ], WebhookService);

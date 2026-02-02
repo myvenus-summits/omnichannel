@@ -6,8 +6,7 @@ import {
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { Logger } from '@nestjs/common';
-import type { Message } from '../entities/message.entity';
-import type { Conversation } from '../entities/conversation.entity';
+import type { IMessage, IConversation } from '../interfaces';
 
 @WebSocketGateway({
   namespace: 'omnichannel',
@@ -35,7 +34,7 @@ export class OmnichannelGateway
   /**
    * 새 메시지 이벤트 발송
    */
-  emitNewMessage(conversationId: number, message: Message) {
+  emitNewMessage(conversationId: number, message: IMessage) {
     this.server.emit(`conversation:${conversationId}:message`, {
       conversationId,
       message: {
@@ -57,7 +56,7 @@ export class OmnichannelGateway
   /**
    * 대화 목록 업데이트 (새 대화 생성 또는 메타데이터 변경)
    */
-  emitConversationUpdate(conversation: Conversation) {
+  emitConversationUpdate(conversation: IConversation) {
     this.server.emit('conversation:update', {
       id: conversation.id,
       channel: conversation.channel,

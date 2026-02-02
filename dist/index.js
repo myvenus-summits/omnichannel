@@ -1,9 +1,12 @@
 "use strict";
 /**
- * @summits/omnichannel
+ * @myvenus-summits/omnichannel
  *
  * Omnichannel messaging module for NestJS
  * Supports WhatsApp, Instagram, LINE and more
+ *
+ * @version 1.0.0
+ * @breaking-change v1.0.0: Entities removed. Use interfaces and inject repositories.
  */
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
@@ -22,12 +25,10 @@ var __exportStar = (this && this.__exportStar) || function(m, exports) {
 Object.defineProperty(exports, "__esModule", { value: true });
 // Module
 __exportStar(require("./omnichannel.module"), exports);
-// Interfaces
+// Interfaces (includes entity interfaces and repository interfaces)
 __exportStar(require("./interfaces"), exports);
 // Types
 __exportStar(require("./types"), exports);
-// Entities
-__exportStar(require("./entities"), exports);
 // DTOs
 __exportStar(require("./dto"), exports);
 // Services

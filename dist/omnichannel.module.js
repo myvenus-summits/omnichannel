@@ -9,9 +9,6 @@ var OmnichannelModule_1;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.OmnichannelModule = void 0;
 const common_1 = require("@nestjs/common");
-const typeorm_1 = require("@nestjs/typeorm");
-// Entities
-const entities_1 = require("./entities");
 // Adapters
 const whatsapp_adapter_1 = require("./adapters/whatsapp.adapter");
 const instagram_adapter_1 = require("./adapters/instagram.adapter");
@@ -29,21 +26,20 @@ const interfaces_1 = require("./interfaces");
  * WhatsApp, Instagram, LINE 등 다양한 메시징 채널을 통합 관리하는 NestJS 모듈
  *
  * @example
- * // 동기 설정
- * OmnichannelModule.forRoot({
- *   twilio: {
- *     accountSid: 'AC...',
- *     authToken: '...',
- *     whatsappNumber: '+1234567890',
- *   },
- *   enableWebSocket: true,
- * })
- *
- * @example
- * // 비동기 설정 (ConfigService 사용)
+ * // 비동기 설정 (Repository 주입 필수)
  * OmnichannelModule.forRootAsync({
- *   imports: [ConfigModule],
- *   useFactory: (config: ConfigService) => ({
+ *   imports: [ConfigModule, TypeOrmModule.forFeature([...])],
+ *   useFactory: (
+ *     config: ConfigService,
+ *     conversationRepo: Repository<ConversationEntity>,
+ *     messageRepo: Repository<MessageEntity>,
+ *     quickReplyRepo: Repository<QuickReplyEntity>,
+ *   ) => ({
+ *     repositories: {
+ *       conversationRepository: new TypeOrmConversationRepository(conversationRepo),
+ *       messageRepository: new TypeOrmMessageRepository(messageRepo),
+ *       quickReplyRepository: new TypeOrmQuickReplyRepository(quickReplyRepo),
+ *     },
  *     twilio: {
  *       accountSid: config.get('TWILIO_ACCOUNT_SID'),
  *       authToken: config.get('TWILIO_AUTH_TOKEN'),
@@ -51,36 +47,37 @@ const interfaces_1 = require("./interfaces");
  *     },
  *     appUrl: config.get('APP_URL'),
  *   }),
- *   inject: [ConfigService],
+ *   inject: [ConfigService, getRepositoryToken(ConversationEntity), ...],
  * })
  */
 let OmnichannelModule = OmnichannelModule_1 = class OmnichannelModule {
     /**
      * 동기 모듈 설정
+     * Repository를 직접 제공해야 함
      */
-    static forRoot(options = {}) {
+    static forRoot(options) {
+        if (!options.repositories) {
+            throw new Error('OmnichannelModule.forRoot() requires repositories option. Use forRootAsync() with repository injection.');
+        }
+        const repositoryProviders = this.createRepositoryProviders(options);
         const providers = this.createProviders(options);
         const controllers = this.createControllers(options);
         return {
             module: OmnichannelModule_1,
-            imports: [
-                typeorm_1.TypeOrmModule.forFeature([
-                    entities_1.Conversation,
-                    entities_1.Message,
-                    entities_1.ContactChannel,
-                    entities_1.QuickReply,
-                ]),
-            ],
             controllers,
             providers: [
                 {
                     provide: interfaces_1.OMNICHANNEL_MODULE_OPTIONS,
                     useValue: options,
                 },
+                ...repositoryProviders,
                 ...providers,
             ],
             exports: [
                 interfaces_1.OMNICHANNEL_MODULE_OPTIONS,
+                interfaces_1.CONVERSATION_REPOSITORY,
+                interfaces_1.MESSAGE_REPOSITORY,
+                interfaces_1.QUICK_REPLY_REPOSITORY,
                 services_1.ConversationService,
                 services_1.MessageService,
                 services_1.WebhookService,
@@ -98,15 +95,7 @@ let OmnichannelModule = OmnichannelModule_1 = class OmnichannelModule {
         const asyncProviders = this.createAsyncProviders(options);
         return {
             module: OmnichannelModule_1,
-            imports: [
-                typeorm_1.TypeOrmModule.forFeature([
-                    entities_1.Conversation,
-                    entities_1.Message,
-                    entities_1.ContactChannel,
-                    entities_1.QuickReply,
-                ]),
-                ...(options.imports ?? []),
-            ],
+            imports: [...(options.imports ?? [])],
             controllers: [
                 controllers_1.ConversationController,
                 controllers_1.WebhookController,
@@ -114,6 +103,44 @@ let OmnichannelModule = OmnichannelModule_1 = class OmnichannelModule {
             ],
             providers: [
                 ...asyncProviders,
+                // Repository providers from async options
+                {
+                    provide: interfaces_1.CONVERSATION_REPOSITORY,
+                    useFactory: (opts) => {
+                        if (!opts.repositories?.conversationRepository) {
+                            throw new Error('conversationRepository is required in OmnichannelModuleOptions.repositories');
+                        }
+                        return opts.repositories.conversationRepository;
+                    },
+                    inject: [interfaces_1.OMNICHANNEL_MODULE_OPTIONS],
+                },
+                {
+                    provide: interfaces_1.MESSAGE_REPOSITORY,
+                    useFactory: (opts) => {
+                        if (!opts.repositories?.messageRepository) {
+                            throw new Error('messageRepository is required in OmnichannelModuleOptions.repositories');
+                        }
+                        return opts.repositories.messageRepository;
+                    },
+                    inject: [interfaces_1.OMNICHANNEL_MODULE_OPTIONS],
+                },
+                {
+                    provide: interfaces_1.QUICK_REPLY_REPOSITORY,
+                    useFactory: (opts) => {
+                        if (!opts.repositories?.quickReplyRepository) {
+                            throw new Error('quickReplyRepository is required in OmnichannelModuleOptions.repositories');
+                        }
+                        return opts.repositories.quickReplyRepository;
+                    },
+                    inject: [interfaces_1.OMNICHANNEL_MODULE_OPTIONS],
+                },
+                {
+                    provide: interfaces_1.CONTACT_CHANNEL_REPOSITORY,
+                    useFactory: (opts) => {
+                        return opts.repositories?.contactChannelRepository ?? null;
+                    },
+                    inject: [interfaces_1.OMNICHANNEL_MODULE_OPTIONS],
+                },
                 whatsapp_adapter_1.WhatsAppAdapter,
                 instagram_adapter_1.InstagramAdapter,
                 gateways_1.OmnichannelGateway,
@@ -121,9 +148,14 @@ let OmnichannelModule = OmnichannelModule_1 = class OmnichannelModule {
                 services_1.MessageService,
                 services_1.WebhookService,
                 services_1.QuickReplyService,
+                ...(options.extraProviders ?? []),
             ],
             exports: [
                 interfaces_1.OMNICHANNEL_MODULE_OPTIONS,
+                interfaces_1.CONVERSATION_REPOSITORY,
+                interfaces_1.MESSAGE_REPOSITORY,
+                interfaces_1.QUICK_REPLY_REPOSITORY,
+                interfaces_1.CONTACT_CHANNEL_REPOSITORY,
                 services_1.ConversationService,
                 services_1.MessageService,
                 services_1.WebhookService,
@@ -133,6 +165,33 @@ let OmnichannelModule = OmnichannelModule_1 = class OmnichannelModule {
                 gateways_1.OmnichannelGateway,
             ],
         };
+    }
+    /**
+     * Repository 프로바이더 생성
+     */
+    static createRepositoryProviders(options) {
+        const providers = [];
+        if (options.repositories) {
+            providers.push({
+                provide: interfaces_1.CONVERSATION_REPOSITORY,
+                useValue: options.repositories.conversationRepository,
+            });
+            providers.push({
+                provide: interfaces_1.MESSAGE_REPOSITORY,
+                useValue: options.repositories.messageRepository,
+            });
+            providers.push({
+                provide: interfaces_1.QUICK_REPLY_REPOSITORY,
+                useValue: options.repositories.quickReplyRepository,
+            });
+            if (options.repositories.contactChannelRepository) {
+                providers.push({
+                    provide: interfaces_1.CONTACT_CHANNEL_REPOSITORY,
+                    useValue: options.repositories.contactChannelRepository,
+                });
+            }
+        }
+        return providers;
     }
     /**
      * 프로바이더 생성

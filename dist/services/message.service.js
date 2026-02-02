@@ -15,61 +15,31 @@ var MessageService_1;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.MessageService = void 0;
 const common_1 = require("@nestjs/common");
-const typeorm_1 = require("@nestjs/typeorm");
-const typeorm_2 = require("typeorm");
-const message_entity_1 = require("../entities/message.entity");
-const conversation_entity_1 = require("../entities/conversation.entity");
+const interfaces_1 = require("../interfaces");
 const whatsapp_adapter_1 = require("../adapters/whatsapp.adapter");
 const conversation_service_1 = require("./conversation.service");
 let MessageService = MessageService_1 = class MessageService {
     messageRepository;
-    conversationRepository;
     whatsappAdapter;
     conversationService;
     logger = new common_1.Logger(MessageService_1.name);
-    constructor(messageRepository, conversationRepository, whatsappAdapter, conversationService) {
+    constructor(messageRepository, whatsappAdapter, conversationService) {
         this.messageRepository = messageRepository;
-        this.conversationRepository = conversationRepository;
         this.whatsappAdapter = whatsappAdapter;
         this.conversationService = conversationService;
     }
     async findByConversation(conversationId, options) {
-        const queryBuilder = this.messageRepository
-            .createQueryBuilder('message')
-            .where('message.conversationId = :conversationId', { conversationId })
-            .orderBy('message.createdAt', 'DESC');
-        if (options?.before) {
-            const beforeMessage = await this.messageRepository.findOne({
-                where: { id: Number(options.before) },
-            });
-            if (beforeMessage) {
-                queryBuilder.andWhere('message.createdAt < :beforeDate', {
-                    beforeDate: beforeMessage.createdAt,
-                });
-            }
-        }
-        if (options?.limit) {
-            queryBuilder.take(options.limit);
-        }
-        else {
-            queryBuilder.take(50);
-        }
-        const messages = await queryBuilder.getMany();
-        return messages.reverse();
+        return this.messageRepository.findByConversation(conversationId, options);
     }
     async findOne(id) {
-        const message = await this.messageRepository.findOne({
-            where: { id },
-            relations: ['conversation'],
-        });
+        const message = await this.messageRepository.findOne(id);
         if (!message) {
             throw new common_1.NotFoundException(`Message #${id} not found`);
         }
         return message;
     }
     async create(data) {
-        const message = this.messageRepository.create(data);
-        return this.messageRepository.save(message);
+        return this.messageRepository.create(data);
     }
     async sendMessage(conversationId, dto, senderUserId) {
         const conversation = await this.conversationService.findOne(conversationId);
@@ -98,17 +68,17 @@ let MessageService = MessageService_1 = class MessageService {
             direction: 'outbound',
             senderUserId,
             contentType: dto.contentType,
-            contentText: dto.contentText,
-            contentMediaUrl: dto.contentMediaUrl,
+            contentText: dto.contentText ?? null,
+            contentMediaUrl: dto.contentMediaUrl ?? null,
             status: 'sent',
+            senderName: null,
+            metadata: null,
         });
         await this.conversationService.updateLastMessage(conversationId, dto.contentText?.substring(0, 100) ?? '[Media]', new Date());
         return message;
     }
     async createFromWebhook(conversationId, data) {
-        const existing = await this.messageRepository.findOne({
-            where: { channelMessageId: data.channelMessageId },
-        });
+        const existing = await this.messageRepository.findByChannelMessageId(data.channelMessageId);
         if (existing) {
             this.logger.log(`Message ${data.channelMessageId} already exists`);
             return existing;
@@ -117,12 +87,13 @@ let MessageService = MessageService_1 = class MessageService {
             conversationId,
             channelMessageId: data.channelMessageId,
             direction: data.direction,
-            senderName: data.senderName,
+            senderName: data.senderName ?? null,
             contentType: data.contentType,
-            contentText: data.contentText,
-            contentMediaUrl: data.contentMediaUrl,
+            contentText: data.contentText ?? null,
+            contentMediaUrl: data.contentMediaUrl ?? null,
             status: 'delivered',
-            metadata: data.metadata,
+            metadata: data.metadata ?? null,
+            senderUserId: null,
         });
         if (data.direction === 'inbound') {
             await this.conversationService.incrementUnreadCount(conversationId);
@@ -131,17 +102,14 @@ let MessageService = MessageService_1 = class MessageService {
         return message;
     }
     async updateStatus(channelMessageId, status) {
-        await this.messageRepository.update({ channelMessageId }, { status });
+        await this.messageRepository.updateStatus(channelMessageId, status);
     }
 };
 exports.MessageService = MessageService;
 exports.MessageService = MessageService = MessageService_1 = __decorate([
     (0, common_1.Injectable)(),
-    __param(0, (0, typeorm_1.InjectRepository)(message_entity_1.Message)),
-    __param(1, (0, typeorm_1.InjectRepository)(conversation_entity_1.Conversation)),
-    __metadata("design:paramtypes", [typeorm_2.Repository,
-        typeorm_2.Repository,
-        whatsapp_adapter_1.WhatsAppAdapter,
+    __param(0, (0, common_1.Inject)(interfaces_1.MESSAGE_REPOSITORY)),
+    __metadata("design:paramtypes", [Object, whatsapp_adapter_1.WhatsAppAdapter,
         conversation_service_1.ConversationService])
 ], MessageService);
 //# sourceMappingURL=message.service.js.map

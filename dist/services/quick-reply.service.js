@@ -14,9 +14,7 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.QuickReplyService = void 0;
 const common_1 = require("@nestjs/common");
-const typeorm_1 = require("@nestjs/typeorm");
-const typeorm_2 = require("typeorm");
-const entities_1 = require("../entities");
+const interfaces_1 = require("../interfaces");
 let QuickReplyService = class QuickReplyService {
     quickReplyRepository;
     constructor(quickReplyRepository) {
@@ -28,24 +26,16 @@ let QuickReplyService = class QuickReplyService {
      * - 검색 기능 지원
      */
     async findAll(query) {
-        const qb = this.quickReplyRepository.createQueryBuilder('qr');
-        if (query.activeOnly !== false) {
-            qb.where('qr.isActive = :isActive', { isActive: true });
-        }
-        if (query.search) {
-            const searchTerm = `%${query.search}%`;
-            qb.andWhere('(qr.title ILIKE :search OR qr.content ILIKE :search OR qr.shortcut ILIKE :search)', { search: searchTerm });
-        }
-        qb.orderBy('qr.usageCount', 'DESC').addOrderBy('qr.createdAt', 'DESC');
-        return qb.getMany();
+        return this.quickReplyRepository.findAll({
+            search: query.search,
+            activeOnly: query.activeOnly !== false,
+        });
     }
     /**
      * 빠른 답변 단일 조회
      */
     async findOne(id) {
-        const quickReply = await this.quickReplyRepository.findOne({
-            where: { id },
-        });
+        const quickReply = await this.quickReplyRepository.findOne(id);
         if (!quickReply) {
             throw new common_1.NotFoundException(`Quick reply #${id} not found`);
         }
@@ -55,43 +45,45 @@ let QuickReplyService = class QuickReplyService {
      * 단축키로 빠른 답변 조회
      */
     async findByShortcut(shortcut) {
-        return this.quickReplyRepository.findOne({
-            where: { shortcut, isActive: true },
-        });
+        return this.quickReplyRepository.findByShortcut(shortcut);
     }
     /**
      * 빠른 답변 생성
      */
     async create(dto) {
-        const quickReply = this.quickReplyRepository.create(dto);
-        return this.quickReplyRepository.save(quickReply);
+        return this.quickReplyRepository.create({
+            title: dto.title,
+            content: dto.content,
+            shortcut: dto.shortcut ?? null,
+            usageCount: 0,
+            isActive: true,
+        });
     }
     /**
      * 빠른 답변 수정
      */
     async update(id, dto) {
-        const quickReply = await this.findOne(id);
-        Object.assign(quickReply, dto);
-        return this.quickReplyRepository.save(quickReply);
+        await this.findOne(id); // Ensure exists
+        return this.quickReplyRepository.update(id, dto);
     }
     /**
      * 빠른 답변 삭제
      */
     async delete(id) {
-        const quickReply = await this.findOne(id);
-        await this.quickReplyRepository.remove(quickReply);
+        await this.findOne(id); // Ensure exists
+        await this.quickReplyRepository.delete(id);
     }
     /**
      * 사용 횟수 증가
      */
     async incrementUsage(id) {
-        await this.quickReplyRepository.increment({ id }, 'usageCount', 1);
+        await this.quickReplyRepository.incrementUsage(id);
     }
 };
 exports.QuickReplyService = QuickReplyService;
 exports.QuickReplyService = QuickReplyService = __decorate([
     (0, common_1.Injectable)(),
-    __param(0, (0, typeorm_1.InjectRepository)(entities_1.QuickReply)),
-    __metadata("design:paramtypes", [typeorm_2.Repository])
+    __param(0, (0, common_1.Inject)(interfaces_1.QUICK_REPLY_REPOSITORY)),
+    __metadata("design:paramtypes", [Object])
 ], QuickReplyService);
 //# sourceMappingURL=quick-reply.service.js.map

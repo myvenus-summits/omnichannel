@@ -3,7 +3,14 @@ import {
   Type,
   InjectionToken,
   OptionalFactoryDependency,
+  Provider,
 } from '@nestjs/common';
+import type {
+  IConversationRepository,
+  IMessageRepository,
+  IQuickReplyRepository,
+  IContactChannelRepository,
+} from './repository.interface';
 
 /**
  * Twilio 설정
@@ -28,9 +35,41 @@ export interface MetaConfig {
 }
 
 /**
+ * Repository 설정
+ * 외부에서 Repository 구현체를 주입
+ */
+export interface RepositoryConfig {
+  /**
+   * Conversation Repository 구현체
+   */
+  conversationRepository: IConversationRepository;
+
+  /**
+   * Message Repository 구현체
+   */
+  messageRepository: IMessageRepository;
+
+  /**
+   * QuickReply Repository 구현체
+   */
+  quickReplyRepository: IQuickReplyRepository;
+
+  /**
+   * ContactChannel Repository 구현체 (선택)
+   */
+  contactChannelRepository?: IContactChannelRepository;
+}
+
+/**
  * Omnichannel 모듈 설정 옵션
  */
 export interface OmnichannelModuleOptions {
+  /**
+   * Repository 설정
+   * forRootAsync에서 주입 필수
+   */
+  repositories?: RepositoryConfig;
+
   /**
    * Twilio 설정 (WhatsApp용)
    */
@@ -95,6 +134,11 @@ export interface OmnichannelModuleAsyncOptions
    * inject: 팩토리 함수에 주입할 의존성
    */
   inject?: Array<InjectionToken | OptionalFactoryDependency>;
+
+  /**
+   * 추가 프로바이더 (Repository 구현체 등)
+   */
+  extraProviders?: Provider[];
 }
 
 export const OMNICHANNEL_MODULE_OPTIONS = 'OMNICHANNEL_MODULE_OPTIONS';

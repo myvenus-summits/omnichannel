@@ -1,7 +1,7 @@
 {
   "name": "@myvenus-summits/omnichannel",
-  "version": "0.3.1",
-  "description": "Omnichannel messaging module for NestJS (WhatsApp, Instagram, LINE)",
+  "version": "1.0.0",
+  "description": "Omnichannel messaging module for NestJS (WhatsApp, Instagram, LINE) - Interface-based, bring your own repository",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "files": [
@@ -43,14 +43,12 @@
     "@nestjs/core": "^10.0.0 || ^11.0.0",
     "@nestjs/platform-socket.io": "^10.0.0 || ^11.0.0",
     "@nestjs/swagger": "^7.0.0 || ^11.0.0",
-    "@nestjs/typeorm": "^10.0.0 || ^11.0.0",
     "@nestjs/websockets": "^10.0.0 || ^11.0.0",
     "class-transformer": "^0.5.0",
     "class-validator": "^0.14.0",
     "reflect-metadata": "^0.2.0",
     "rxjs": "^7.8.0",
-    "socket.io": "^4.7.0",
-    "typeorm": "^0.3.0"
+    "socket.io": "^4.7.0"
   },
   "peerDependenciesMeta": {
     "@nestjs/platform-socket.io": {
@@ -69,7 +67,6 @@
     "@nestjs/core": "^10.4.0",
     "@nestjs/platform-socket.io": "^10.4.0",
     "@nestjs/swagger": "^7.4.0",
-    "@nestjs/typeorm": "^10.0.0",
     "@nestjs/websockets": "^10.4.0",
     "@types/express": "^5.0.6",
     "@types/jest": "^30.0.0",
@@ -81,7 +78,6 @@
     "rxjs": "^7.8.1",
     "socket.io": "^4.8.0",
     "ts-jest": "^29.4.6",
-    "typeorm": "^0.3.20",
     "typescript": "~5.6.0"
   },
   "engines": {

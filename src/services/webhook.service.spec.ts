@@ -4,38 +4,25 @@ import { InstagramAdapter } from '../adapters/instagram.adapter';
 import { OmnichannelGateway } from '../gateways/omnichannel.gateway';
 import { ConversationService } from './conversation.service';
 import { MessageService } from './message.service';
-import type { DataSource, EntityManager, Repository } from 'typeorm';
-import type { OmnichannelModuleOptions } from '../interfaces';
-import type { Conversation } from '../entities/conversation.entity';
-import type { Message } from '../entities/message.entity';
+import type { OmnichannelModuleOptions, IConversationRepository, IMessageRepository, IConversation, IMessage } from '../interfaces';
 
-// Mock repositories
-const mockConversationRepo = {
+// Mock repositories (implementing interfaces)
+const mockConversationRepository: jest.Mocked<IConversationRepository> = {
+  findAll: jest.fn(),
   findOne: jest.fn(),
+  findByChannelConversationId: jest.fn(),
   create: jest.fn(),
-  save: jest.fn(),
   update: jest.fn(),
+  incrementUnreadCount: jest.fn(),
+  updateLastMessage: jest.fn(),
 };
 
-const mockMessageRepo = {
+const mockMessageRepository: jest.Mocked<IMessageRepository> = {
+  findByConversation: jest.fn(),
+  findOne: jest.fn(),
+  findByChannelMessageId: jest.fn(),
   create: jest.fn(),
-  save: jest.fn(),
-};
-
-// Mock entity manager
-const mockManager: Partial<EntityManager> = {
-  getRepository: jest.fn().mockImplementation((entity: { name: string }) => {
-    if (entity.name === 'Conversation') return mockConversationRepo;
-    if (entity.name === 'Message') return mockMessageRepo;
-    return {};
-  }),
-};
-
-// Mock DataSource
-const mockDataSource: Partial<DataSource> = {
-  transaction: jest.fn().mockImplementation(async (cb) => {
-    return cb(mockManager as EntityManager);
-  }),
+  updateStatus: jest.fn(),
 };
 
 // Mock adapters
@@ -76,8 +63,9 @@ describe('WebhookService', () => {
       whatsappNumber: '+1234567890',
     },
     meta: {
-      accessToken: 'token',
+      appId: 'app123',
       appSecret: 'secret',
+      accessToken: 'token',
       webhookVerifyToken: 'verify_token_123',
     },
   };
@@ -86,7 +74,8 @@ describe('WebhookService', () => {
     jest.clearAllMocks();
     service = new WebhookService(
       mockOptions,
-      mockDataSource as DataSource,
+      mockConversationRepository,
+      mockMessageRepository,
       mockWhatsAppAdapter as unknown as WhatsAppAdapter,
       mockInstagramAdapter as unknown as InstagramAdapter,
       mockGateway as unknown as OmnichannelGateway,
@@ -113,22 +102,50 @@ describe('WebhookService', () => {
 
       mockWhatsAppAdapter.parseWebhookPayload.mockReturnValue(mockEvent);
 
-      const mockConversation = { id: 1, unreadCount: 0 };
-      const mockUpdatedConversation = { id: 1, unreadCount: 1 };
-      const mockMessage = { id: 1, channelMessageId: 'IM123' };
+      const mockConversation: IConversation = {
+        id: 1,
+        channel: 'whatsapp',
+        channelConversationId: 'CH123',
+        contactIdentifier: '+821012345678',
+        contactName: null,
+        status: 'open',
+        tags: [],
+        assignedUserId: null,
+        unreadCount: 0,
+        lastMessageAt: null,
+        lastMessagePreview: null,
+        metadata: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
 
-      mockConversationRepo.findOne
-        .mockResolvedValueOnce(null) // First call - check for existing
-        .mockResolvedValueOnce(mockUpdatedConversation); // Second call - after update
-      mockConversationRepo.create.mockReturnValue(mockConversation);
-      mockConversationRepo.save.mockResolvedValue(mockConversation);
-      mockMessageRepo.create.mockReturnValue(mockMessage);
-      mockMessageRepo.save.mockResolvedValue(mockMessage);
+      const mockUpdatedConversation: IConversation = { ...mockConversation, unreadCount: 1 };
+      const mockMessage: IMessage = {
+        id: 1,
+        conversationId: 1,
+        channelMessageId: 'IM123',
+        direction: 'inbound',
+        senderName: 'Customer',
+        senderUserId: null,
+        contentType: 'text',
+        contentText: 'Hello',
+        contentMediaUrl: null,
+        status: 'delivered',
+        metadata: null,
+        createdAt: new Date(),
+      };
+
+      mockConversationRepository.findByChannelConversationId.mockResolvedValue(null);
+      mockConversationRepository.create.mockResolvedValue(mockConversation);
+      mockConversationRepository.update.mockResolvedValue(mockUpdatedConversation);
+      mockMessageRepository.findByChannelMessageId.mockResolvedValue(null);
+      mockMessageRepository.create.mockResolvedValue(mockMessage);
 
       await service.handleTwilioWebhook({ EventType: 'onMessageAdded' });
 
       expect(mockWhatsAppAdapter.parseWebhookPayload).toHaveBeenCalled();
-      expect(mockDataSource.transaction).toHaveBeenCalled();
+      expect(mockConversationRepository.create).toHaveBeenCalled();
+      expect(mockMessageRepository.create).toHaveBeenCalled();
       expect(mockGateway.emitNewMessage).toHaveBeenCalled();
       expect(mockGateway.emitConversationUpdate).toHaveBeenCalled();
     });
@@ -150,19 +167,47 @@ describe('WebhookService', () => {
 
       mockWhatsAppAdapter.parseWebhookPayload.mockReturnValue(mockEvent);
 
-      const existingConversation = { id: 1, unreadCount: 5 };
-      const mockMessage = { id: 2, channelMessageId: 'IM456' };
+      const existingConversation: IConversation = {
+        id: 1,
+        channel: 'whatsapp',
+        channelConversationId: 'CH123',
+        contactIdentifier: '+821012345678',
+        contactName: null,
+        status: 'open',
+        tags: [],
+        assignedUserId: null,
+        unreadCount: 5,
+        lastMessageAt: null,
+        lastMessagePreview: null,
+        metadata: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
 
-      mockConversationRepo.findOne
-        .mockResolvedValueOnce(existingConversation)
-        .mockResolvedValueOnce({ ...existingConversation, unreadCount: 6 });
-      mockMessageRepo.create.mockReturnValue(mockMessage);
-      mockMessageRepo.save.mockResolvedValue(mockMessage);
+      const mockMessage: IMessage = {
+        id: 2,
+        conversationId: 1,
+        channelMessageId: 'IM456',
+        direction: 'inbound',
+        senderName: 'Customer',
+        senderUserId: null,
+        contentType: 'text',
+        contentText: 'Follow up',
+        contentMediaUrl: null,
+        status: 'delivered',
+        metadata: null,
+        createdAt: new Date(),
+      };
+
+      mockConversationRepository.findByChannelConversationId.mockResolvedValue(existingConversation);
+      mockConversationRepository.update.mockResolvedValue({ ...existingConversation, unreadCount: 6 });
+      mockMessageRepository.findByChannelMessageId.mockResolvedValue(null);
+      mockMessageRepository.create.mockResolvedValue(mockMessage);
 
       await service.handleTwilioWebhook({ EventType: 'onMessageAdded' });
 
-      expect(mockConversationRepo.create).not.toHaveBeenCalled();
-      expect(mockConversationRepo.update).toHaveBeenCalledWith(
+      expect(mockConversationRepository.create).not.toHaveBeenCalled();
+      expect(mockConversationRepository.update).toHaveBeenCalledWith(
         1,
         expect.objectContaining({
           unreadCount: 6,
@@ -187,18 +232,46 @@ describe('WebhookService', () => {
 
       mockWhatsAppAdapter.parseWebhookPayload.mockReturnValue(mockEvent);
 
-      const existingConversation = { id: 1, unreadCount: 3 };
-      const mockMessage = { id: 3, channelMessageId: 'IM789' };
+      const existingConversation: IConversation = {
+        id: 1,
+        channel: 'whatsapp',
+        channelConversationId: 'CH123',
+        contactIdentifier: '+821012345678',
+        contactName: null,
+        status: 'open',
+        tags: [],
+        assignedUserId: null,
+        unreadCount: 3,
+        lastMessageAt: null,
+        lastMessagePreview: null,
+        metadata: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
 
-      mockConversationRepo.findOne
-        .mockResolvedValueOnce(existingConversation)
-        .mockResolvedValueOnce(existingConversation);
-      mockMessageRepo.create.mockReturnValue(mockMessage);
-      mockMessageRepo.save.mockResolvedValue(mockMessage);
+      const mockMessage: IMessage = {
+        id: 3,
+        conversationId: 1,
+        channelMessageId: 'IM789',
+        direction: 'outbound',
+        senderName: 'Agent',
+        senderUserId: null,
+        contentType: 'text',
+        contentText: 'Reply',
+        contentMediaUrl: null,
+        status: 'sent',
+        metadata: null,
+        createdAt: new Date(),
+      };
+
+      mockConversationRepository.findByChannelConversationId.mockResolvedValue(existingConversation);
+      mockConversationRepository.update.mockResolvedValue(existingConversation);
+      mockMessageRepository.findByChannelMessageId.mockResolvedValue(null);
+      mockMessageRepository.create.mockResolvedValue(mockMessage);
 
       await service.handleTwilioWebhook({ EventType: 'onMessageAdded' });
 
-      expect(mockConversationRepo.update).toHaveBeenCalledWith(
+      expect(mockConversationRepository.update).toHaveBeenCalledWith(
         1,
         expect.objectContaining({
           unreadCount: 3, // Should not increment
@@ -211,7 +284,7 @@ describe('WebhookService', () => {
 
       await service.handleTwilioWebhook({});
 
-      expect(mockDataSource.transaction).not.toHaveBeenCalled();
+      expect(mockConversationRepository.findByChannelConversationId).not.toHaveBeenCalled();
     });
 
     it('should handle status update events', async () => {
@@ -290,17 +363,43 @@ describe('WebhookService', () => {
 
       mockInstagramAdapter.parseWebhookPayload.mockReturnValue(mockEvent);
 
-      const mockConversation = { id: 1, unreadCount: 0 };
-      const mockUpdatedConversation = { id: 1, unreadCount: 1 };
-      const mockMessage = { id: 1, channelMessageId: 'm_ABC123' };
+      const mockConversation: IConversation = {
+        id: 1,
+        channel: 'instagram',
+        channelConversationId: 'instagram_123_456',
+        contactIdentifier: 'user123',
+        contactName: 'user123',
+        status: 'open',
+        tags: [],
+        assignedUserId: null,
+        unreadCount: 0,
+        lastMessageAt: null,
+        lastMessagePreview: null,
+        metadata: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
 
-      mockConversationRepo.findOne
-        .mockResolvedValueOnce(null) // First call - check for existing
-        .mockResolvedValueOnce(mockUpdatedConversation); // Second call - after update
-      mockConversationRepo.create.mockReturnValue(mockConversation);
-      mockConversationRepo.save.mockResolvedValue(mockConversation);
-      mockMessageRepo.create.mockReturnValue(mockMessage);
-      mockMessageRepo.save.mockResolvedValue(mockMessage);
+      const mockMessage: IMessage = {
+        id: 1,
+        conversationId: 1,
+        channelMessageId: 'm_ABC123',
+        direction: 'inbound',
+        senderName: 'user123',
+        senderUserId: null,
+        contentType: 'text',
+        contentText: 'Hi from Instagram',
+        contentMediaUrl: null,
+        status: 'delivered',
+        metadata: null,
+        createdAt: new Date(),
+      };
+
+      mockConversationRepository.findByChannelConversationId.mockResolvedValue(null);
+      mockConversationRepository.create.mockResolvedValue(mockConversation);
+      mockConversationRepository.update.mockResolvedValue({ ...mockConversation, unreadCount: 1 });
+      mockMessageRepository.findByChannelMessageId.mockResolvedValue(null);
+      mockMessageRepository.create.mockResolvedValue(mockMessage);
 
       await service.handleMetaWebhook({ object: 'instagram', entry: [] });
 
@@ -332,14 +431,42 @@ describe('WebhookService', () => {
 
       mockInstagramAdapter.parseWebhookPayload.mockReturnValue(mockEvent);
 
-      const mockConversation = { id: 2, unreadCount: 1 };
-      const mockMessage = { id: 2, channelMessageId: 'm_DIRECT123' };
+      const mockConversation: IConversation = {
+        id: 2,
+        channel: 'instagram',
+        channelConversationId: 'instagram_123_456',
+        contactIdentifier: 'user123',
+        contactName: 'user123',
+        status: 'open',
+        tags: [],
+        assignedUserId: null,
+        unreadCount: 1,
+        lastMessageAt: null,
+        lastMessagePreview: null,
+        metadata: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
 
-      mockConversationRepo.findOne
-        .mockResolvedValueOnce(mockConversation)
-        .mockResolvedValueOnce({ ...mockConversation, unreadCount: 2 });
-      mockMessageRepo.create.mockReturnValue(mockMessage);
-      mockMessageRepo.save.mockResolvedValue(mockMessage);
+      const mockMessage: IMessage = {
+        id: 2,
+        conversationId: 2,
+        channelMessageId: 'm_DIRECT123',
+        direction: 'inbound',
+        senderName: 'user123',
+        senderUserId: null,
+        contentType: 'text',
+        contentText: 'Direct Instagram message',
+        contentMediaUrl: null,
+        status: 'delivered',
+        metadata: null,
+        createdAt: new Date(),
+      };
+
+      mockConversationRepository.findByChannelConversationId.mockResolvedValue(mockConversation);
+      mockConversationRepository.update.mockResolvedValue({ ...mockConversation, unreadCount: 2 });
+      mockMessageRepository.findByChannelMessageId.mockResolvedValue(null);
+      mockMessageRepository.create.mockResolvedValue(mockMessage);
 
       await service.handleInstagramWebhook({
         object: 'instagram',
@@ -357,7 +484,7 @@ describe('WebhookService', () => {
         entry: [],
       });
 
-      expect(mockDataSource.transaction).not.toHaveBeenCalled();
+      expect(mockConversationRepository.findByChannelConversationId).not.toHaveBeenCalled();
     });
   });
 
@@ -379,7 +506,8 @@ describe('WebhookService', () => {
     it('should handle message event without WebSocket gateway', async () => {
       const serviceNoGateway = new WebhookService(
         mockOptions,
-        mockDataSource as DataSource,
+        mockConversationRepository,
+        mockMessageRepository,
         mockWhatsAppAdapter as unknown as WhatsAppAdapter,
         mockInstagramAdapter as unknown as InstagramAdapter,
         null,
@@ -403,14 +531,43 @@ describe('WebhookService', () => {
 
       mockWhatsAppAdapter.parseWebhookPayload.mockReturnValue(mockEvent);
 
-      const mockConversation = { id: 1, unreadCount: 0 };
-      const mockMessage = { id: 1, channelMessageId: 'IM999' };
+      const mockConversation: IConversation = {
+        id: 1,
+        channel: 'whatsapp',
+        channelConversationId: 'CH123',
+        contactIdentifier: '+821012345678',
+        contactName: null,
+        status: 'open',
+        tags: [],
+        assignedUserId: null,
+        unreadCount: 0,
+        lastMessageAt: null,
+        lastMessagePreview: null,
+        metadata: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
 
-      mockConversationRepo.findOne.mockResolvedValue(null);
-      mockConversationRepo.create.mockReturnValue(mockConversation);
-      mockConversationRepo.save.mockResolvedValue(mockConversation);
-      mockMessageRepo.create.mockReturnValue(mockMessage);
-      mockMessageRepo.save.mockResolvedValue(mockMessage);
+      const mockMessage: IMessage = {
+        id: 1,
+        conversationId: 1,
+        channelMessageId: 'IM999',
+        direction: 'inbound',
+        senderName: 'Customer',
+        senderUserId: null,
+        contentType: 'text',
+        contentText: 'No gateway test',
+        contentMediaUrl: null,
+        status: 'delivered',
+        metadata: null,
+        createdAt: new Date(),
+      };
+
+      mockConversationRepository.findByChannelConversationId.mockResolvedValue(null);
+      mockConversationRepository.create.mockResolvedValue(mockConversation);
+      mockConversationRepository.update.mockResolvedValue({ ...mockConversation, unreadCount: 1 });
+      mockMessageRepository.findByChannelMessageId.mockResolvedValue(null);
+      mockMessageRepository.create.mockResolvedValue(mockMessage);
 
       // Should not throw even without gateway
       await expect(serviceNoGateway.handleTwilioWebhook({})).resolves.not.toThrow();

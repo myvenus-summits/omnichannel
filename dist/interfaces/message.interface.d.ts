@@ -1,8 +1,10 @@
 import type { MessageDirection, MessageContentType, MessageStatus } from '../types';
-import { Conversation } from './conversation.entity';
-export declare class Message {
+/**
+ * Message 인터페이스
+ * 외부에서 엔티티 구조를 직접 정의하여 사용
+ */
+export interface IMessage {
     id: number;
-    conversation: Conversation;
     conversationId: number;
     channelMessageId: string;
     direction: MessageDirection;
@@ -15,4 +17,15 @@ export declare class Message {
     metadata: Record<string, unknown> | null;
     createdAt: Date;
 }
-//# sourceMappingURL=message.entity.d.ts.map
+/**
+ * Message 생성용 데이터
+ */
+export type CreateMessageData = Omit<IMessage, 'id' | 'createdAt'> & {
+    id?: number;
+    createdAt?: Date;
+};
+/**
+ * Message 업데이트용 데이터
+ */
+export type UpdateMessageData = Partial<Omit<IMessage, 'id' | 'createdAt'>>;
+//# sourceMappingURL=message.interface.d.ts.map

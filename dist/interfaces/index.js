@@ -15,4 +15,9 @@ var __exportStar = (this && this.__exportStar) || function(m, exports) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 __exportStar(require("./omnichannel-options.interface"), exports);
+__exportStar(require("./conversation.interface"), exports);
+__exportStar(require("./message.interface"), exports);
+__exportStar(require("./contact-channel.interface"), exports);
+__exportStar(require("./quick-reply.interface"), exports);
+__exportStar(require("./repository.interface"), exports);
 //# sourceMappingURL=index.js.map

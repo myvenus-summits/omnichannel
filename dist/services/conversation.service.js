@@ -15,9 +15,7 @@ var ConversationService_1;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ConversationService = void 0;
 const common_1 = require("@nestjs/common");
-const typeorm_1 = require("@nestjs/typeorm");
-const typeorm_2 = require("typeorm");
-const conversation_entity_1 = require("../entities/conversation.entity");
+const interfaces_1 = require("../interfaces");
 let ConversationService = ConversationService_1 = class ConversationService {
     conversationRepository;
     logger = new common_1.Logger(ConversationService_1.name);
@@ -25,101 +23,69 @@ let ConversationService = ConversationService_1 = class ConversationService {
         this.conversationRepository = conversationRepository;
     }
     async findAll(filter) {
-        const { channel, status = 'open', assignedUserId, unassigned, tags, search, page = 1, limit = 20, } = filter;
-        const queryBuilder = this.conversationRepository.createQueryBuilder('conversation');
-        if (status) {
-            queryBuilder.andWhere('conversation.status = :status', { status });
-        }
-        if (channel) {
-            queryBuilder.andWhere('conversation.channel = :channel', { channel });
-        }
-        if (unassigned) {
-            queryBuilder.andWhere('conversation.assignedUserId IS NULL');
-        }
-        else if (assignedUserId) {
-            queryBuilder.andWhere('conversation.assignedUserId = :assignedUserId', {
-                assignedUserId,
-            });
-        }
-        if (tags && tags.length > 0) {
-            queryBuilder.andWhere('conversation.tags @> :tags', {
-                tags: JSON.stringify(tags),
-            });
-        }
-        if (search) {
-            queryBuilder.andWhere('(conversation.contactName ILIKE :search OR conversation.contactIdentifier ILIKE :search)', { search: `%${search}%` });
-        }
-        queryBuilder.orderBy('conversation.lastMessageAt', 'DESC', 'NULLS LAST');
-        const skip = (page - 1) * limit;
-        queryBuilder.skip(skip).take(limit);
-        const [items, total] = await queryBuilder.getManyAndCount();
-        return {
-            items,
-            meta: {
-                total,
-                page,
-                limit,
-                totalPages: Math.ceil(total / limit),
-            },
-        };
+        return this.conversationRepository.findAll({
+            channel: filter.channel,
+            status: filter.status ?? 'open',
+            assignedUserId: filter.assignedUserId,
+            unassigned: filter.unassigned,
+            tags: filter.tags,
+            search: filter.search,
+            page: filter.page ?? 1,
+            limit: filter.limit ?? 20,
+        });
     }
     async findOne(id) {
-        const conversation = await this.conversationRepository.findOne({
-            where: { id },
-        });
+        const conversation = await this.conversationRepository.findOne(id);
         if (!conversation) {
             throw new common_1.NotFoundException(`Conversation #${id} not found`);
         }
         return conversation;
     }
     async findByChannelConversationId(channelConversationId) {
-        return this.conversationRepository.findOne({
-            where: { channelConversationId },
-        });
+        return this.conversationRepository.findByChannelConversationId(channelConversationId);
     }
     async create(data) {
-        const conversation = this.conversationRepository.create(data);
-        return this.conversationRepository.save(conversation);
+        return this.conversationRepository.create(data);
     }
     async update(id, data) {
         const conversation = await this.findOne(id);
-        Object.assign(conversation, data);
-        return this.conversationRepository.save(conversation);
+        return this.conversationRepository.update(id, data);
     }
     async assign(id, dto) {
-        const conversation = await this.findOne(id);
-        conversation.assignedUserId = dto.userId ?? null;
-        return this.conversationRepository.save(conversation);
+        await this.findOne(id); // Ensure exists
+        return this.conversationRepository.update(id, {
+            assignedUserId: dto.userId ?? null,
+        });
     }
     async updateTags(id, dto) {
-        const conversation = await this.findOne(id);
-        conversation.tags = dto.tags;
-        return this.conversationRepository.save(conversation);
+        await this.findOne(id); // Ensure exists
+        return this.conversationRepository.update(id, {
+            tags: dto.tags,
+        });
     }
     async updateStatus(id, dto) {
-        const conversation = await this.findOne(id);
-        conversation.status = dto.status;
-        return this.conversationRepository.save(conversation);
+        await this.findOne(id); // Ensure exists
+        return this.conversationRepository.update(id, {
+            status: dto.status,
+        });
     }
     async markAsRead(id) {
-        const conversation = await this.findOne(id);
-        conversation.unreadCount = 0;
-        return this.conversationRepository.save(conversation);
+        await this.findOne(id); // Ensure exists
+        return this.conversationRepository.update(id, {
+            unreadCount: 0,
+        });
     }
     async incrementUnreadCount(id) {
-        await this.conversationRepository.increment({ id }, 'unreadCount', 1);
+        await this.conversationRepository.incrementUnreadCount(id);
     }
     async updateLastMessage(id, preview, timestamp) {
-        await this.conversationRepository.update(id, {
-            lastMessagePreview: preview,
-            lastMessageAt: timestamp,
-        });
+        await this.conversationRepository.updateLastMessage(id, preview, timestamp);
     }
 };
 exports.ConversationService = ConversationService;
 exports.ConversationService = ConversationService = ConversationService_1 = __decorate([
     (0, common_1.Injectable)(),
-    __param(0, (0, typeorm_1.InjectRepository)(conversation_entity_1.Conversation)),
-    __metadata("design:paramtypes", [typeorm_2.Repository])
+    __param(0, (0, common_1.Inject)(interfaces_1.CONVERSATION_REPOSITORY)),
+    __metadata("design:paramtypes", [Object])
 ], ConversationService);
 //# sourceMappingURL=conversation.service.js.map
