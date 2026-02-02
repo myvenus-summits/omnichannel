@@ -7,16 +7,21 @@ export declare class InstagramAdapter implements ChannelAdapter {
     private readonly accessToken;
     private readonly appSecret;
     private readonly webhookVerifyToken;
+    private readonly pageId;
+    private readonly instagramBusinessAccountId;
     private readonly apiVersion;
-    private readonly baseUrl;
+    private readonly graphBaseUrl;
+    private readonly igBaseUrl;
     readonly channel: ChannelType;
     constructor(options?: OmnichannelModuleOptions | undefined);
     /**
-     * Send a message via Instagram Messaging API
+     * Send a message via Instagram Messaging API (using Facebook Graph API)
+     * https://developers.facebook.com/docs/instagram-platform/instagram-api-with-instagram-login/messaging-api
      */
     sendMessage(to: string, content: MessageContent): Promise<SendMessageResult>;
     /**
      * Send a template message (Instagram generic template)
+     * Note: Instagram has limited template support compared to Messenger
      */
     sendTemplateMessage(to: string, templateId: string, variables: Record<string, string>): Promise<SendMessageResult>;
     /**
@@ -25,6 +30,7 @@ export declare class InstagramAdapter implements ChannelAdapter {
     parseWebhookPayload(payload: unknown): NormalizedWebhookEvent | null;
     /**
      * Fetch messages from Instagram conversation
+     * Uses Facebook Graph API for Instagram messaging
      */
     fetchMessages(conversationId: string, options?: {
         limit?: number;
@@ -40,6 +46,8 @@ export declare class InstagramAdapter implements ChannelAdapter {
     private buildMessagePayload;
     /**
      * Parse individual messaging event
+     * @param event - The messaging event from webhook
+     * @param entryId - The entry ID (Instagram Business Account ID from webhook)
      */
     private parseMessagingEvent;
     /**
@@ -55,7 +63,13 @@ export declare class InstagramAdapter implements ChannelAdapter {
      */
     private buildConversationId;
     /**
-     * Determine message direction based on sender
+     * Determine message direction based on sender ID
+     * Compares against configured Instagram Business Account ID
+     */
+    private determineDirectionById;
+    /**
+     * Legacy method for backward compatibility
+     * @deprecated Use determineDirectionById instead
      */
     private determineDirection;
 }

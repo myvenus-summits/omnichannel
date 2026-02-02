@@ -70,6 +70,21 @@ let OmnichannelGateway = OmnichannelGateway_1 = class OmnichannelGateway {
             status,
         });
     }
+    /**
+     * 메시지 상태 변경 알림 (sent -> delivered -> read)
+     */
+    emitMessageStatusUpdate(conversationId, channelMessageId, status) {
+        const eventName = `conversation:${conversationId}:message:status`;
+        const payload = {
+            conversationId,
+            channelMessageId,
+            status,
+        };
+        this.logger.log(`📤 Emitting ${eventName}: ${JSON.stringify(payload)}`);
+        this.server.emit(eventName, payload);
+        // 전역 이벤트도 발송 (대화 ID 모를 때를 위해)
+        this.server.emit('message:status', payload);
+    }
 };
 exports.OmnichannelGateway = OmnichannelGateway;
 __decorate([

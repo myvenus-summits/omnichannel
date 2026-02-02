@@ -19,4 +19,5 @@ __exportStar(require("./conversation-filter.dto"), exports);
 __exportStar(require("./webhook-payload.dto"), exports);
 __exportStar(require("./quick-reply.dto"), exports);
 __exportStar(require("./instagram-webhook.dto"), exports);
+__exportStar(require("./message-template.dto"), exports);
 //# sourceMappingURL=index.js.map

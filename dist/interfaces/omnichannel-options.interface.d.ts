@@ -1,5 +1,6 @@
 import { ModuleMetadata, Type, InjectionToken, OptionalFactoryDependency, Provider } from '@nestjs/common';
 import type { IConversationRepository, IMessageRepository, IQuickReplyRepository, IContactChannelRepository } from './repository.interface';
+import type { IMessageTemplateRepository, ITemplateHistoryRepository } from './message-template.interface';
 /**
  * Twilio 설정
  */
@@ -19,6 +20,16 @@ export interface MetaConfig {
     appSecret: string;
     accessToken: string;
     webhookVerifyToken: string;
+    /**
+     * Facebook Page ID (used for Instagram messaging endpoint)
+     * This is the Page that is connected to your Instagram Business Account
+     */
+    pageId?: string;
+    /**
+     * Instagram Business Account ID (used for direction detection)
+     * This is the Instagram account connected to your Facebook Page
+     */
+    instagramBusinessAccountId?: string;
 }
 /**
  * Repository 설정
@@ -41,6 +52,14 @@ export interface RepositoryConfig {
      * ContactChannel Repository 구현체 (선택)
      */
     contactChannelRepository?: IContactChannelRepository;
+    /**
+     * MessageTemplate Repository 구현체 (선택)
+     */
+    messageTemplateRepository?: IMessageTemplateRepository;
+    /**
+     * TemplateHistory Repository 구현체 (선택)
+     */
+    templateHistoryRepository?: ITemplateHistoryRepository;
 }
 /**
  * Omnichannel 모듈 설정 옵션

@@ -44,7 +44,23 @@ let WhatsAppAdapter = WhatsAppAdapter_1 = class WhatsAppAdapter {
             this.logger.warn('Twilio credentials not configured');
         }
     }
+    /**
+     * Send message - auto-detects API based on destination format
+     * - ConversationSid (CH...) -> Conversations API
+     * - Phone number (whatsapp:+...) -> Messaging API
+     */
     async sendMessage(to, content) {
+        // Detect if this is a Conversations API conversation ID
+        if (to.startsWith('CH')) {
+            return this.sendMessageViaConversationsApi(to, content);
+        }
+        // Default to Messaging API
+        return this.sendMessageViaMessagingApi(to, content);
+    }
+    /**
+     * Send message via Twilio Messaging API (for Sandbox/direct WhatsApp)
+     */
+    async sendMessageViaMessagingApi(to, content) {
         try {
             if (!this.client) {
                 throw new Error('Twilio client not initialized');
@@ -66,14 +82,44 @@ let WhatsAppAdapter = WhatsAppAdapter_1 = class WhatsAppAdapter {
                 }
             }
             const message = await this.client.messages.create(messageOptions);
-            this.logger.log(`Message sent: ${message.sid}`);
+            this.logger.log(`Message sent via Messaging API: ${message.sid}`);
             return {
                 success: true,
                 channelMessageId: message.sid,
             };
         }
         catch (error) {
-            this.logger.error('Failed to send WhatsApp message', error);
+            this.logger.error('Failed to send WhatsApp message via Messaging API', error);
+            return {
+                success: false,
+                error: error instanceof Error ? error.message : 'Unknown error',
+            };
+        }
+    }
+    /**
+     * Send message via Twilio Conversations API
+     */
+    async sendMessageViaConversationsApi(conversationSid, content) {
+        try {
+            if (!this.client) {
+                throw new Error('Twilio client not initialized');
+            }
+            const messageOptions = {};
+            if (content.type === 'text' && content.text) {
+                messageOptions.body = content.text;
+            }
+            // TODO: Handle media for Conversations API (requires media upload first)
+            const message = await this.client.conversations.v1
+                .conversations(conversationSid)
+                .messages.create(messageOptions);
+            this.logger.log(`Message sent via Conversations API: ${message.sid}`);
+            return {
+                success: true,
+                channelMessageId: message.sid,
+            };
+        }
+        catch (error) {
+            this.logger.error('Failed to send WhatsApp message via Conversations API', error);
             return {
                 success: false,
                 error: error instanceof Error ? error.message : 'Unknown error',
@@ -199,7 +245,9 @@ let WhatsAppAdapter = WhatsAppAdapter_1 = class WhatsAppAdapter {
         }
         // This is an incoming message
         // Determine direction: inbound if From is the customer (whatsapp:+xxx), outbound if from our number
-        const isInbound = from.startsWith('whatsapp:') && !from.includes(this.whatsappNumber);
+        // Fix: Handle case when whatsappNumber is not configured (empty string check)
+        const isInbound = from.startsWith('whatsapp:') &&
+            (this.whatsappNumber ? !from.includes(this.whatsappNumber) : true);
         const direction = isInbound ? 'inbound' : 'outbound';
         // Use From as conversation ID (each sender gets their own conversation)
         const conversationId = isInbound ? from : to;

@@ -17,4 +17,5 @@ Object.defineProperty(exports, "__esModule", { value: true });
 __exportStar(require("./conversation.controller"), exports);
 __exportStar(require("./webhook.controller"), exports);
 __exportStar(require("./quick-reply.controller"), exports);
+__exportStar(require("./template.controller"), exports);
 //# sourceMappingURL=index.js.map

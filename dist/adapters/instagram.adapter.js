@@ -22,8 +22,11 @@ let InstagramAdapter = InstagramAdapter_1 = class InstagramAdapter {
     accessToken;
     appSecret;
     webhookVerifyToken;
+    pageId;
+    instagramBusinessAccountId;
     apiVersion = 'v21.0';
-    baseUrl = 'https://graph.instagram.com';
+    graphBaseUrl = 'https://graph.facebook.com';
+    igBaseUrl = 'https://graph.instagram.com';
     channel = 'instagram';
     constructor(options) {
         this.options = options;
@@ -31,20 +34,33 @@ let InstagramAdapter = InstagramAdapter_1 = class InstagramAdapter {
         this.accessToken = meta?.accessToken ?? '';
         this.appSecret = meta?.appSecret ?? '';
         this.webhookVerifyToken = meta?.webhookVerifyToken ?? '';
+        this.pageId = meta?.pageId ?? '';
+        this.instagramBusinessAccountId = meta?.instagramBusinessAccountId ?? '';
         if (!this.accessToken) {
             this.logger.warn('Instagram access token not configured');
         }
+        if (!this.pageId) {
+            this.logger.warn('Instagram page ID not configured');
+        }
+        if (!this.instagramBusinessAccountId) {
+            this.logger.warn('Instagram Business Account ID not configured - direction detection may be inaccurate');
+        }
     }
     /**
-     * Send a message via Instagram Messaging API
+     * Send a message via Instagram Messaging API (using Facebook Graph API)
+     * https://developers.facebook.com/docs/instagram-platform/instagram-api-with-instagram-login/messaging-api
      */
     async sendMessage(to, content) {
         try {
             if (!this.accessToken) {
                 throw new Error('Instagram access token not configured');
             }
+            if (!this.pageId) {
+                throw new Error('Instagram page ID not configured');
+            }
             const messagePayload = this.buildMessagePayload(content);
-            const url = `${this.baseUrl}/${this.apiVersion}/me/messages`;
+            // Instagram Messaging uses the Facebook Graph API endpoint
+            const url = `${this.graphBaseUrl}/${this.apiVersion}/${this.pageId}/messages`;
             const response = await fetch(url, {
                 method: 'POST',
                 headers: {
@@ -64,7 +80,7 @@ let InstagramAdapter = InstagramAdapter_1 = class InstagramAdapter {
                     error: result.error?.message ?? 'Unknown Instagram API error',
                 };
             }
-            this.logger.log(`Message sent to Instagram: ${result.message_id}`);
+            this.logger.log(`Message sent to Instagram user ${to}: ${result.message_id}`);
             return {
                 success: true,
                 channelMessageId: result.message_id,
@@ -80,14 +96,18 @@ let InstagramAdapter = InstagramAdapter_1 = class InstagramAdapter {
     }
     /**
      * Send a template message (Instagram generic template)
+     * Note: Instagram has limited template support compared to Messenger
      */
     async sendTemplateMessage(to, templateId, variables) {
         try {
             if (!this.accessToken) {
                 throw new Error('Instagram access token not configured');
             }
+            if (!this.pageId) {
+                throw new Error('Instagram page ID not configured');
+            }
             // Instagram uses generic templates for structured messages
-            const url = `${this.baseUrl}/${this.apiVersion}/me/messages`;
+            const url = `${this.graphBaseUrl}/${this.apiVersion}/${this.pageId}/messages`;
             const response = await fetch(url, {
                 method: 'POST',
                 headers: {
@@ -124,7 +144,7 @@ let InstagramAdapter = InstagramAdapter_1 = class InstagramAdapter {
                     error: result.error?.message ?? 'Unknown Instagram API error',
                 };
             }
-            this.logger.log(`Template message sent: ${result.message_id}`);
+            this.logger.log(`Template message sent to ${to}: ${result.message_id}`);
             return {
                 success: true,
                 channelMessageId: result.message_id,
@@ -167,6 +187,7 @@ let InstagramAdapter = InstagramAdapter_1 = class InstagramAdapter {
     }
     /**
      * Fetch messages from Instagram conversation
+     * Uses Facebook Graph API for Instagram messaging
      */
     async fetchMessages(conversationId, options) {
         try {
@@ -174,7 +195,7 @@ let InstagramAdapter = InstagramAdapter_1 = class InstagramAdapter {
                 throw new Error('Instagram access token not configured');
             }
             const limit = options?.limit ?? 50;
-            let url = `${this.baseUrl}/${this.apiVersion}/${conversationId}?fields=messages{id,message,from,to,created_time}&limit=${limit}`;
+            let url = `${this.graphBaseUrl}/${this.apiVersion}/${conversationId}?fields=messages{id,message,from,to,created_time}&limit=${limit}`;
             if (options?.before) {
                 url += `&before=${options.before}`;
             }
@@ -184,6 +205,8 @@ let InstagramAdapter = InstagramAdapter_1 = class InstagramAdapter {
                 },
             });
             if (!response.ok) {
+                const errorText = await response.text();
+                this.logger.error(`Instagram API error: ${response.status} - ${errorText}`);
                 throw new Error(`Instagram API error: ${response.status}`);
             }
             const data = (await response.json());
@@ -193,7 +216,7 @@ let InstagramAdapter = InstagramAdapter_1 = class InstagramAdapter {
                     for (const msg of conversation.messages.data) {
                         messages.push({
                             channelMessageId: msg.id,
-                            direction: this.determineDirection(msg.from.id, conversationId),
+                            direction: this.determineDirectionById(msg.from.id),
                             senderName: msg.from.username ?? msg.from.id,
                             contentType: 'text',
                             contentText: msg.message,
@@ -252,11 +275,15 @@ let InstagramAdapter = InstagramAdapter_1 = class InstagramAdapter {
     }
     /**
      * Parse individual messaging event
+     * @param event - The messaging event from webhook
+     * @param entryId - The entry ID (Instagram Business Account ID from webhook)
      */
-    parseMessagingEvent(event, pageId) {
+    parseMessagingEvent(event, entryId) {
         // Handle message event
         if (event.message && !event.message.is_echo && !event.message.is_deleted) {
-            const direction = event.sender.id === pageId ? 'outbound' : 'inbound';
+            // Use configured business account ID if available, otherwise fall back to entry ID
+            const businessAccountId = this.instagramBusinessAccountId || entryId;
+            const direction = event.sender.id === businessAccountId ? 'outbound' : 'inbound';
             const contentType = this.determineContentType(event.message);
             const mediaUrl = this.extractMediaUrl(event.message);
             return {
@@ -275,6 +302,7 @@ let InstagramAdapter = InstagramAdapter_1 = class InstagramAdapter {
                         isQuickReply: !!event.message.quick_reply,
                         quickReplyPayload: event.message.quick_reply?.payload,
                         replyToMid: event.message.reply_to?.mid,
+                        instagramEntryId: entryId,
                     },
                 },
             };
@@ -360,13 +388,23 @@ let InstagramAdapter = InstagramAdapter_1 = class InstagramAdapter {
         return `instagram_${ids[0]}_${ids[1]}`;
     }
     /**
-     * Determine message direction based on sender
+     * Determine message direction based on sender ID
+     * Compares against configured Instagram Business Account ID
+     */
+    determineDirectionById(senderId) {
+        // If no business account ID configured, default to inbound for safety
+        if (!this.instagramBusinessAccountId) {
+            return 'inbound';
+        }
+        // If sender is our business account, it's an outbound message
+        return senderId === this.instagramBusinessAccountId ? 'outbound' : 'inbound';
+    }
+    /**
+     * Legacy method for backward compatibility
+     * @deprecated Use determineDirectionById instead
      */
     determineDirection(senderId, _conversationId) {
-        // This is a simplified version - in production you'd compare against
-        // your business account ID stored in configuration
-        // For now, we'll treat it as inbound by default (can be adjusted based on config)
-        return 'inbound';
+        return this.determineDirectionById(senderId);
     }
 };
 exports.InstagramAdapter = InstagramAdapter;

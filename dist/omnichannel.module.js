@@ -100,6 +100,7 @@ let OmnichannelModule = OmnichannelModule_1 = class OmnichannelModule {
                 controllers_1.ConversationController,
                 controllers_1.WebhookController,
                 controllers_1.QuickReplyController,
+                controllers_1.TemplateController,
             ],
             providers: [
                 ...asyncProviders,
@@ -141,6 +142,20 @@ let OmnichannelModule = OmnichannelModule_1 = class OmnichannelModule {
                     },
                     inject: [interfaces_1.OMNICHANNEL_MODULE_OPTIONS],
                 },
+                {
+                    provide: interfaces_1.MESSAGE_TEMPLATE_REPOSITORY,
+                    useFactory: (opts) => {
+                        return opts.repositories?.messageTemplateRepository ?? null;
+                    },
+                    inject: [interfaces_1.OMNICHANNEL_MODULE_OPTIONS],
+                },
+                {
+                    provide: interfaces_1.TEMPLATE_HISTORY_REPOSITORY,
+                    useFactory: (opts) => {
+                        return opts.repositories?.templateHistoryRepository ?? null;
+                    },
+                    inject: [interfaces_1.OMNICHANNEL_MODULE_OPTIONS],
+                },
                 whatsapp_adapter_1.WhatsAppAdapter,
                 instagram_adapter_1.InstagramAdapter,
                 gateways_1.OmnichannelGateway,
@@ -148,6 +163,7 @@ let OmnichannelModule = OmnichannelModule_1 = class OmnichannelModule {
                 services_1.MessageService,
                 services_1.WebhookService,
                 services_1.QuickReplyService,
+                services_1.TemplateService,
                 ...(options.extraProviders ?? []),
             ],
             exports: [
@@ -156,10 +172,13 @@ let OmnichannelModule = OmnichannelModule_1 = class OmnichannelModule {
                 interfaces_1.MESSAGE_REPOSITORY,
                 interfaces_1.QUICK_REPLY_REPOSITORY,
                 interfaces_1.CONTACT_CHANNEL_REPOSITORY,
+                interfaces_1.MESSAGE_TEMPLATE_REPOSITORY,
+                interfaces_1.TEMPLATE_HISTORY_REPOSITORY,
                 services_1.ConversationService,
                 services_1.MessageService,
                 services_1.WebhookService,
                 services_1.QuickReplyService,
+                services_1.TemplateService,
                 whatsapp_adapter_1.WhatsAppAdapter,
                 instagram_adapter_1.InstagramAdapter,
                 gateways_1.OmnichannelGateway,

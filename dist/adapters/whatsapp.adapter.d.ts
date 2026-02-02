@@ -12,7 +12,20 @@ export declare class WhatsAppAdapter implements ChannelAdapter {
     private readonly accountSid;
     readonly channel: ChannelType;
     constructor(options?: OmnichannelModuleOptions | undefined);
+    /**
+     * Send message - auto-detects API based on destination format
+     * - ConversationSid (CH...) -> Conversations API
+     * - Phone number (whatsapp:+...) -> Messaging API
+     */
     sendMessage(to: string, content: MessageContent): Promise<SendMessageResult>;
+    /**
+     * Send message via Twilio Messaging API (for Sandbox/direct WhatsApp)
+     */
+    private sendMessageViaMessagingApi;
+    /**
+     * Send message via Twilio Conversations API
+     */
+    private sendMessageViaConversationsApi;
     sendTemplateMessage(to: string, templateId: string, variables: Record<string, string>): Promise<SendMessageResult>;
     parseWebhookPayload(payload: unknown): NormalizedWebhookEvent | null;
     /**
