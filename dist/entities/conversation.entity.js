@@ -40,16 +40,16 @@ __decorate([
     __metadata("design:type", String)
 ], Conversation.prototype, "channel", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ name: 'channel_conversation_id', unique: true }),
+    (0, typeorm_1.Column)({ name: 'channel_conversation_id', type: 'varchar', length: 255, unique: true }),
     __metadata("design:type", String)
 ], Conversation.prototype, "channelConversationId", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ name: 'contact_identifier' }),
+    (0, typeorm_1.Column)({ name: 'contact_identifier', type: 'varchar', length: 255 }),
     (0, typeorm_1.Index)(),
     __metadata("design:type", String)
 ], Conversation.prototype, "contactIdentifier", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ name: 'contact_name', nullable: true }),
+    (0, typeorm_1.Column)({ name: 'contact_name', type: 'varchar', length: 255, nullable: true }),
     __metadata("design:type", Object)
 ], Conversation.prototype, "contactName", void 0);
 __decorate([
@@ -73,7 +73,7 @@ __decorate([
     __metadata("design:type", Object)
 ], Conversation.prototype, "lastMessageAt", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ name: 'last_message_preview', nullable: true }),
+    (0, typeorm_1.Column)({ name: 'last_message_preview', type: 'text', nullable: true }),
     __metadata("design:type", Object)
 ], Conversation.prototype, "lastMessagePreview", void 0);
 __decorate([

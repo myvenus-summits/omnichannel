@@ -37,19 +37,19 @@ export class ContactChannel {
    * Instagram: username
    * LINE: userId
    */
-  @Column({ name: 'channel_identifier' })
+  @Column({ name: 'channel_identifier', type: 'varchar', length: 255 })
   channelIdentifier!: string;
 
   /**
    * 채널에서 가져온 프로필 이름
    */
-  @Column({ name: 'channel_display_name', nullable: true })
+  @Column({ name: 'channel_display_name', type: 'varchar', length: 255, nullable: true })
   channelDisplayName!: string | null;
 
   /**
    * 채널에서 가져온 프로필 이미지 URL
    */
-  @Column({ name: 'channel_profile_url', nullable: true })
+  @Column({ name: 'channel_profile_url', type: 'text', nullable: true })
   channelProfileUrl!: string | null;
 
   /**

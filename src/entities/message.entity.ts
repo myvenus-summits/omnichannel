@@ -23,13 +23,13 @@ export class Message {
   @Column({ name: 'conversation_id', type: 'bigint' })
   conversationId!: number;
 
-  @Column({ name: 'channel_message_id', unique: true })
+  @Column({ name: 'channel_message_id', type: 'varchar', length: 255, unique: true })
   channelMessageId!: string;
 
   @Column({ type: 'varchar', length: 10 })
   direction!: MessageDirection;
 
-  @Column({ name: 'sender_name', nullable: true })
+  @Column({ name: 'sender_name', type: 'varchar', length: 255, nullable: true })
   senderName!: string | null;
 
   @Column({ name: 'sender_user_id', type: 'bigint', nullable: true })
@@ -41,7 +41,7 @@ export class Message {
   @Column({ name: 'content_text', type: 'text', nullable: true })
   contentText!: string | null;
 
-  @Column({ name: 'content_media_url', nullable: true })
+  @Column({ name: 'content_media_url', type: 'text', nullable: true })
   contentMediaUrl!: string | null;
 
   @Column({ type: 'varchar', length: 20, default: 'sent' })

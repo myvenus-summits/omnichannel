@@ -22,14 +22,14 @@ export class Conversation {
   @Column({ type: 'varchar', length: 20 })
   channel!: ChannelType;
 
-  @Column({ name: 'channel_conversation_id', unique: true })
+  @Column({ name: 'channel_conversation_id', type: 'varchar', length: 255, unique: true })
   channelConversationId!: string;
 
-  @Column({ name: 'contact_identifier' })
+  @Column({ name: 'contact_identifier', type: 'varchar', length: 255 })
   @Index()
   contactIdentifier!: string;
 
-  @Column({ name: 'contact_name', nullable: true })
+  @Column({ name: 'contact_name', type: 'varchar', length: 255, nullable: true })
   contactName!: string | null;
 
   @Column({ type: 'varchar', length: 20, default: 'open' })
@@ -47,7 +47,7 @@ export class Conversation {
   @Column({ name: 'last_message_at', type: 'timestamptz', nullable: true })
   lastMessageAt!: Date | null;
 
-  @Column({ name: 'last_message_preview', nullable: true })
+  @Column({ name: 'last_message_preview', type: 'text', nullable: true })
   lastMessagePreview!: string | null;
 
   @Column({ type: 'jsonb', nullable: true })

@@ -42,7 +42,7 @@ __decorate([
     __metadata("design:type", Number)
 ], Message.prototype, "conversationId", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ name: 'channel_message_id', unique: true }),
+    (0, typeorm_1.Column)({ name: 'channel_message_id', type: 'varchar', length: 255, unique: true }),
     __metadata("design:type", String)
 ], Message.prototype, "channelMessageId", void 0);
 __decorate([
@@ -50,7 +50,7 @@ __decorate([
     __metadata("design:type", String)
 ], Message.prototype, "direction", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ name: 'sender_name', nullable: true }),
+    (0, typeorm_1.Column)({ name: 'sender_name', type: 'varchar', length: 255, nullable: true }),
     __metadata("design:type", Object)
 ], Message.prototype, "senderName", void 0);
 __decorate([
@@ -66,7 +66,7 @@ __decorate([
     __metadata("design:type", Object)
 ], Message.prototype, "contentText", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ name: 'content_media_url', nullable: true }),
+    (0, typeorm_1.Column)({ name: 'content_media_url', type: 'text', nullable: true }),
     __metadata("design:type", Object)
 ], Message.prototype, "contentMediaUrl", void 0);
 __decorate([

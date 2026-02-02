@@ -64,15 +64,15 @@ __decorate([
     __metadata("design:type", String)
 ], ContactChannel.prototype, "channel", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ name: 'channel_identifier' }),
+    (0, typeorm_1.Column)({ name: 'channel_identifier', type: 'varchar', length: 255 }),
     __metadata("design:type", String)
 ], ContactChannel.prototype, "channelIdentifier", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ name: 'channel_display_name', nullable: true }),
+    (0, typeorm_1.Column)({ name: 'channel_display_name', type: 'varchar', length: 255, nullable: true }),
     __metadata("design:type", Object)
 ], ContactChannel.prototype, "channelDisplayName", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ name: 'channel_profile_url', nullable: true }),
+    (0, typeorm_1.Column)({ name: 'channel_profile_url', type: 'text', nullable: true }),
     __metadata("design:type", Object)
 ], ContactChannel.prototype, "channelProfileUrl", void 0);
 __decorate([
