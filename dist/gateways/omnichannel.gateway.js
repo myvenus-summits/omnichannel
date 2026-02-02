@@ -27,7 +27,8 @@ let OmnichannelGateway = OmnichannelGateway_1 = class OmnichannelGateway {
      * 새 메시지 이벤트 발송
      */
     emitNewMessage(conversationId, message) {
-        this.server.emit(`conversation:${conversationId}:message`, {
+        const eventName = `conversation:${conversationId}:message`;
+        const payload = {
             conversationId,
             message: {
                 id: message.id,
@@ -39,14 +40,15 @@ let OmnichannelGateway = OmnichannelGateway_1 = class OmnichannelGateway {
                 status: message.status,
                 createdAt: message.createdAt,
             },
-        });
-        this.logger.debug(`Emitted new message for conversation ${conversationId}`);
+        };
+        this.logger.log(`📤 Emitting ${eventName}: ${JSON.stringify(payload)}`);
+        this.server.emit(eventName, payload);
     }
     /**
      * 대화 목록 업데이트 (새 대화 생성 또는 메타데이터 변경)
      */
     emitConversationUpdate(conversation) {
-        this.server.emit('conversation:update', {
+        const payload = {
             id: conversation.id,
             channel: conversation.channel,
             contactIdentifier: conversation.contactIdentifier,
@@ -55,8 +57,9 @@ let OmnichannelGateway = OmnichannelGateway_1 = class OmnichannelGateway {
             lastMessageAt: conversation.lastMessageAt,
             lastMessagePreview: conversation.lastMessagePreview,
             unreadCount: conversation.unreadCount,
-        });
-        this.logger.debug(`Emitted conversation update for ${conversation.id}`);
+        };
+        this.logger.log(`📤 Emitting conversation:update: ${JSON.stringify(payload)}`);
+        this.server.emit('conversation:update', payload);
     }
     /**
      * 대화 상태 변경 알림 (open/closed/archived)

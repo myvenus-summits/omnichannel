@@ -18,7 +18,7 @@ export declare class WebhookService {
     private readonly logger;
     private readonly appUrl;
     private readonly metaWebhookVerifyToken;
-    constructor(options: OmnichannelModuleOptions | undefined, conversationRepository: IConversationRepository, messageRepository: IMessageRepository, whatsappAdapter: WhatsAppAdapter, instagramAdapter: InstagramAdapter, omnichannelGateway: OmnichannelGateway | null, conversationService: ConversationService, messageService: MessageService);
+    constructor(options: OmnichannelModuleOptions | undefined, conversationRepository: IConversationRepository, messageRepository: IMessageRepository, whatsappAdapter: WhatsAppAdapter, instagramAdapter: InstagramAdapter, omnichannelGateway: OmnichannelGateway, conversationService: ConversationService, messageService: MessageService);
     handleTwilioWebhook(payload: unknown): Promise<void>;
     handleMetaWebhook(payload: unknown): Promise<void>;
     handleInstagramWebhook(payload: InstagramWebhookDto): Promise<void>;

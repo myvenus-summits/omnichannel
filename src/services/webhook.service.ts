@@ -30,13 +30,19 @@ export class WebhookService {
     private readonly messageRepository: IMessageRepository,
     private readonly whatsappAdapter: WhatsAppAdapter,
     private readonly instagramAdapter: InstagramAdapter,
-    @Optional()
-    private readonly omnichannelGateway: OmnichannelGateway | null,
+    private readonly omnichannelGateway: OmnichannelGateway,
     private readonly conversationService: ConversationService,
     private readonly messageService: MessageService,
   ) {
     this.appUrl = options?.appUrl ?? '';
     this.metaWebhookVerifyToken = options?.meta?.webhookVerifyToken ?? '';
+    
+    // Gateway 주입 확인 로그
+    if (!this.omnichannelGateway) {
+      this.logger.error('⚠️ OmnichannelGateway was not injected! Real-time updates will NOT work.');
+    } else {
+      this.logger.log('✅ OmnichannelGateway successfully injected');
+    }
   }
 
   async handleTwilioWebhook(payload: unknown): Promise<void> {
@@ -173,10 +179,9 @@ export class WebhookService {
     );
 
     // WebSocket으로 실시간 알림 전송
-    if (this.omnichannelGateway) {
-      this.omnichannelGateway.emitNewMessage(updatedConversation.id, message);
-      this.omnichannelGateway.emitConversationUpdate(updatedConversation);
-    }
+    this.logger.log(`🔔 Emitting WebSocket events for conversation ${updatedConversation.id}`);
+    this.omnichannelGateway.emitNewMessage(updatedConversation.id, message);
+    this.omnichannelGateway.emitConversationUpdate(updatedConversation);
   }
 
   private async handleStatusUpdate(

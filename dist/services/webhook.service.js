@@ -17,6 +17,7 @@ exports.WebhookService = void 0;
 const common_1 = require("@nestjs/common");
 const whatsapp_adapter_1 = require("../adapters/whatsapp.adapter");
 const instagram_adapter_1 = require("../adapters/instagram.adapter");
+const omnichannel_gateway_1 = require("../gateways/omnichannel.gateway");
 const conversation_service_1 = require("./conversation.service");
 const message_service_1 = require("./message.service");
 const interfaces_1 = require("../interfaces");
@@ -43,6 +44,13 @@ let WebhookService = WebhookService_1 = class WebhookService {
         this.messageService = messageService;
         this.appUrl = options?.appUrl ?? '';
         this.metaWebhookVerifyToken = options?.meta?.webhookVerifyToken ?? '';
+        // Gateway 주입 확인 로그
+        if (!this.omnichannelGateway) {
+            this.logger.error('⚠️ OmnichannelGateway was not injected! Real-time updates will NOT work.');
+        }
+        else {
+            this.logger.log('✅ OmnichannelGateway successfully injected');
+        }
     }
     async handleTwilioWebhook(payload) {
         this.logger.log('Processing Twilio webhook');
@@ -146,10 +154,9 @@ let WebhookService = WebhookService_1 = class WebhookService {
         });
         this.logger.log(`Message saved: ${event.message.channelMessageId} in conversation ${conversation.id}`);
         // WebSocket으로 실시간 알림 전송
-        if (this.omnichannelGateway) {
-            this.omnichannelGateway.emitNewMessage(updatedConversation.id, message);
-            this.omnichannelGateway.emitConversationUpdate(updatedConversation);
-        }
+        this.logger.log(`🔔 Emitting WebSocket events for conversation ${updatedConversation.id}`);
+        this.omnichannelGateway.emitNewMessage(updatedConversation.id, message);
+        this.omnichannelGateway.emitConversationUpdate(updatedConversation);
     }
     async handleStatusUpdate(event) {
         if (!event.status)
@@ -177,9 +184,10 @@ exports.WebhookService = WebhookService = WebhookService_1 = __decorate([
     __param(0, (0, common_1.Inject)(interfaces_1.OMNICHANNEL_MODULE_OPTIONS)),
     __param(1, (0, common_1.Inject)(interfaces_1.CONVERSATION_REPOSITORY)),
     __param(2, (0, common_1.Inject)(interfaces_1.MESSAGE_REPOSITORY)),
-    __param(5, (0, common_1.Optional)()),
     __metadata("design:paramtypes", [Object, Object, Object, whatsapp_adapter_1.WhatsAppAdapter,
-        instagram_adapter_1.InstagramAdapter, Object, conversation_service_1.ConversationService,
+        instagram_adapter_1.InstagramAdapter,
+        omnichannel_gateway_1.OmnichannelGateway,
+        conversation_service_1.ConversationService,
         message_service_1.MessageService])
 ], WebhookService);
 //# sourceMappingURL=webhook.service.js.map
