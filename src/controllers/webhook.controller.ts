@@ -71,7 +71,15 @@ export class WebhookController {
       throw new UnauthorizedException('Twilio signature verification required');
     }
 
-    this.logger.log(`Received Twilio webhook: ${payload.EventType}`);
+    // Log webhook format for debugging
+    const webhookFormat = payload.EventType
+      ? 'Conversations API'
+      : payload.SmsMessageSid || payload.MessageSid
+        ? 'Messaging API'
+        : 'Unknown';
+    this.logger.log(
+      `Received Twilio webhook (${webhookFormat}): ${payload.EventType ?? payload.SmsMessageSid ?? payload.MessageSid ?? 'N/A'}`,
+    );
 
     try {
       await this.webhookService.handleTwilioWebhook(payload);

@@ -1,9 +1,9 @@
 /**
- * Twilio Webhook Payload
+ * Twilio Conversations API Webhook Payload
  * https://www.twilio.com/docs/conversations/conversations-webhooks
  */
 export declare class TwilioWebhookDto {
-    EventType: string;
+    EventType?: string;
     ConversationSid?: string;
     MessageSid?: string;
     Body?: string;
@@ -14,6 +14,16 @@ export declare class TwilioWebhookDto {
     MediaContentType?: string;
     MediaUrl?: string;
     DateCreated?: string;
+    SmsMessageSid?: string;
+    SmsStatus?: string;
+    From?: string;
+    To?: string;
+    ProfileName?: string;
+    WaId?: string;
+    NumMedia?: string;
+    NumSegments?: string;
+    ReferralNumMedia?: string;
+    ApiVersion?: string;
 }
 /**
  * Meta Webhook Verification Query

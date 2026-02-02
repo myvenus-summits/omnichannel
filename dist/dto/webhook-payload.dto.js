@@ -13,7 +13,7 @@ exports.MetaMessagingEvent = exports.MetaWebhookEntry = exports.MetaWebhookDto =
 const swagger_1 = require("@nestjs/swagger");
 const class_validator_1 = require("class-validator");
 /**
- * Twilio Webhook Payload
+ * Twilio Conversations API Webhook Payload
  * https://www.twilio.com/docs/conversations/conversations-webhooks
  */
 class TwilioWebhookDto {
@@ -28,10 +28,22 @@ class TwilioWebhookDto {
     MediaContentType;
     MediaUrl;
     DateCreated;
+    // ===== Messaging API fields (Sandbox/WhatsApp) =====
+    SmsMessageSid;
+    SmsStatus;
+    From;
+    To;
+    ProfileName;
+    WaId;
+    NumMedia;
+    NumSegments;
+    ReferralNumMedia;
+    ApiVersion;
 }
 exports.TwilioWebhookDto = TwilioWebhookDto;
 __decorate([
-    (0, swagger_1.ApiProperty)({ description: 'Event type' }),
+    (0, swagger_1.ApiPropertyOptional)({ description: 'Event type (Conversations API)' }),
+    (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], TwilioWebhookDto.prototype, "EventType", void 0);
@@ -95,6 +107,66 @@ __decorate([
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], TwilioWebhookDto.prototype, "DateCreated", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({ description: 'SMS Message SID (Messaging API)' }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], TwilioWebhookDto.prototype, "SmsMessageSid", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({ description: 'SMS Status (Messaging API)' }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], TwilioWebhookDto.prototype, "SmsStatus", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({ description: 'From number (Messaging API)' }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], TwilioWebhookDto.prototype, "From", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({ description: 'To number (Messaging API)' }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], TwilioWebhookDto.prototype, "To", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({ description: 'Profile name (Messaging API - WhatsApp)' }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], TwilioWebhookDto.prototype, "ProfileName", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({ description: 'WhatsApp ID (Messaging API)' }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], TwilioWebhookDto.prototype, "WaId", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({ description: 'Number of media attachments' }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], TwilioWebhookDto.prototype, "NumMedia", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({ description: 'Number of segments' }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], TwilioWebhookDto.prototype, "NumSegments", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({ description: 'Referral info (WhatsApp ads)' }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], TwilioWebhookDto.prototype, "ReferralNumMedia", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({ description: 'API Version' }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], TwilioWebhookDto.prototype, "ApiVersion", void 0);
 /**
  * Meta Webhook Verification Query
  */

@@ -110,56 +110,138 @@ let WhatsAppAdapter = WhatsAppAdapter_1 = class WhatsAppAdapter {
     parseWebhookPayload(payload) {
         try {
             const twilioPayload = payload;
-            if (twilioPayload.EventType === 'onMessageAdded') {
-                const direction = twilioPayload.Source === 'SDK' ? 'outbound' : 'inbound';
-                const contentType = twilioPayload.MediaContentType
-                    ? this.mapMediaType(twilioPayload.MediaContentType)
-                    : 'text';
-                return {
-                    type: 'message',
-                    channelConversationId: twilioPayload.ConversationSid ?? '',
-                    contactIdentifier: twilioPayload.Author ?? '',
-                    message: {
-                        channelMessageId: twilioPayload.MessageSid ?? '',
-                        direction,
-                        senderName: twilioPayload.Author ?? '',
-                        contentType,
-                        contentText: twilioPayload.Body ?? undefined,
-                        contentMediaUrl: twilioPayload.MediaUrl ?? undefined,
-                        timestamp: twilioPayload.DateCreated
-                            ? new Date(twilioPayload.DateCreated)
-                            : new Date(),
-                        metadata: {
-                            participantSid: twilioPayload.ParticipantSid,
-                            accountSid: twilioPayload.AccountSid,
-                        },
-                    },
-                };
+            // Detect webhook format: Conversations API vs Messaging API
+            if (twilioPayload.EventType) {
+                // Conversations API format
+                return this.parseConversationsApiPayload(twilioPayload);
             }
-            if (twilioPayload.EventType === 'onConversationAdded') {
-                return {
-                    type: 'conversation_created',
-                    channelConversationId: twilioPayload.ConversationSid ?? '',
-                    contactIdentifier: '',
-                };
+            else if (twilioPayload.SmsMessageSid || twilioPayload.MessageSid || twilioPayload.From) {
+                // Messaging API format (Sandbox)
+                return this.parseMessagingApiPayload(twilioPayload);
             }
-            if (['onMessageUpdated', 'onDeliveryUpdated'].includes(twilioPayload.EventType)) {
-                return {
-                    type: 'status_update',
-                    channelConversationId: twilioPayload.ConversationSid ?? '',
-                    contactIdentifier: '',
-                    status: {
-                        messageId: twilioPayload.MessageSid ?? '',
-                        status: this.mapTwilioStatus(twilioPayload.EventType),
-                    },
-                };
-            }
+            this.logger.warn('Unknown Twilio webhook format', { payload });
             return null;
         }
         catch (error) {
             this.logger.error('Failed to parse Twilio webhook payload', error);
             return null;
         }
+    }
+    /**
+     * Parse Twilio Conversations API webhook payload
+     */
+    parseConversationsApiPayload(twilioPayload) {
+        if (twilioPayload.EventType === 'onMessageAdded') {
+            const direction = twilioPayload.Source === 'SDK' ? 'outbound' : 'inbound';
+            const contentType = twilioPayload.MediaContentType
+                ? this.mapMediaType(twilioPayload.MediaContentType)
+                : 'text';
+            return {
+                type: 'message',
+                channelConversationId: twilioPayload.ConversationSid ?? '',
+                contactIdentifier: twilioPayload.Author ?? '',
+                message: {
+                    channelMessageId: twilioPayload.MessageSid ?? '',
+                    direction,
+                    senderName: twilioPayload.Author ?? '',
+                    contentType,
+                    contentText: twilioPayload.Body ?? undefined,
+                    contentMediaUrl: twilioPayload.MediaUrl ?? undefined,
+                    timestamp: twilioPayload.DateCreated
+                        ? new Date(twilioPayload.DateCreated)
+                        : new Date(),
+                    metadata: {
+                        participantSid: twilioPayload.ParticipantSid,
+                        accountSid: twilioPayload.AccountSid,
+                    },
+                },
+            };
+        }
+        if (twilioPayload.EventType === 'onConversationAdded') {
+            return {
+                type: 'conversation_created',
+                channelConversationId: twilioPayload.ConversationSid ?? '',
+                contactIdentifier: '',
+            };
+        }
+        if (['onMessageUpdated', 'onDeliveryUpdated'].includes(twilioPayload.EventType ?? '')) {
+            return {
+                type: 'status_update',
+                channelConversationId: twilioPayload.ConversationSid ?? '',
+                contactIdentifier: '',
+                status: {
+                    messageId: twilioPayload.MessageSid ?? '',
+                    status: this.mapTwilioStatus(twilioPayload.EventType ?? ''),
+                },
+            };
+        }
+        return null;
+    }
+    /**
+     * Parse Twilio Messaging API webhook payload (Sandbox format)
+     * https://www.twilio.com/docs/messaging/guides/webhook-request
+     */
+    parseMessagingApiPayload(twilioPayload) {
+        const messageSid = twilioPayload.SmsMessageSid ?? twilioPayload.MessageSid;
+        const from = twilioPayload.From ?? '';
+        const to = twilioPayload.To ?? '';
+        // Check if this is a status callback (has SmsStatus but minimal content)
+        if (twilioPayload.SmsStatus && !twilioPayload.Body && !twilioPayload.NumMedia) {
+            return {
+                type: 'status_update',
+                channelConversationId: from, // Use From as conversation identifier
+                contactIdentifier: from,
+                status: {
+                    messageId: messageSid ?? '',
+                    status: this.mapMessagingApiStatus(twilioPayload.SmsStatus),
+                },
+            };
+        }
+        // This is an incoming message
+        // Determine direction: inbound if From is the customer (whatsapp:+xxx), outbound if from our number
+        const isInbound = from.startsWith('whatsapp:') && !from.includes(this.whatsappNumber);
+        const direction = isInbound ? 'inbound' : 'outbound';
+        // Use From as conversation ID (each sender gets their own conversation)
+        const conversationId = isInbound ? from : to;
+        const contactIdentifier = isInbound ? from : to;
+        // Handle media attachments
+        const numMedia = parseInt(twilioPayload.NumMedia ?? '0', 10);
+        let contentType = 'text';
+        let mediaUrl;
+        if (numMedia > 0) {
+            // Twilio sends MediaUrl0, MediaContentType0, etc. for each attachment
+            const rawPayload = twilioPayload;
+            const mediaContentType = rawPayload['MediaContentType0'];
+            mediaUrl = rawPayload['MediaUrl0'];
+            if (mediaContentType) {
+                contentType = this.mapMediaType(mediaContentType);
+            }
+        }
+        // Extract contact name from ProfileName (WhatsApp) or use identifier
+        const senderName = twilioPayload.ProfileName ?? from;
+        this.logger.log(`Parsed Messaging API webhook: ${messageSid} from ${from} (${senderName})`);
+        return {
+            type: 'message',
+            channelConversationId: conversationId,
+            contactIdentifier,
+            contactName: twilioPayload.ProfileName ?? undefined,
+            message: {
+                channelMessageId: messageSid ?? '',
+                direction,
+                senderName,
+                contentType,
+                contentText: twilioPayload.Body ?? undefined,
+                contentMediaUrl: mediaUrl,
+                timestamp: new Date(),
+                metadata: {
+                    accountSid: twilioPayload.AccountSid,
+                    waId: twilioPayload.WaId,
+                    apiVersion: twilioPayload.ApiVersion,
+                    numMedia,
+                    numSegments: twilioPayload.NumSegments,
+                },
+            },
+        };
     }
     async fetchMessages(conversationId, options) {
         try {
@@ -212,6 +294,27 @@ let WhatsAppAdapter = WhatsAppAdapter_1 = class WhatsAppAdapter {
                 return 'delivered';
             case 'onMessageUpdated':
                 return 'read';
+            default:
+                return 'sent';
+        }
+    }
+    /**
+     * Map Messaging API status to internal status
+     * https://www.twilio.com/docs/sms/api/message-resource#message-status-values
+     */
+    mapMessagingApiStatus(smsStatus) {
+        switch (smsStatus.toLowerCase()) {
+            case 'queued':
+            case 'sending':
+            case 'sent':
+                return 'sent';
+            case 'delivered':
+                return 'delivered';
+            case 'read':
+                return 'read';
+            case 'failed':
+            case 'undelivered':
+                return 'failed';
             default:
                 return 'sent';
         }

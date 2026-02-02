@@ -15,6 +15,15 @@ export declare class WhatsAppAdapter implements ChannelAdapter {
     sendMessage(to: string, content: MessageContent): Promise<SendMessageResult>;
     sendTemplateMessage(to: string, templateId: string, variables: Record<string, string>): Promise<SendMessageResult>;
     parseWebhookPayload(payload: unknown): NormalizedWebhookEvent | null;
+    /**
+     * Parse Twilio Conversations API webhook payload
+     */
+    private parseConversationsApiPayload;
+    /**
+     * Parse Twilio Messaging API webhook payload (Sandbox format)
+     * https://www.twilio.com/docs/messaging/guides/webhook-request
+     */
+    private parseMessagingApiPayload;
     fetchMessages(conversationId: string, options?: {
         limit?: number;
         before?: string;
@@ -22,5 +31,10 @@ export declare class WhatsAppAdapter implements ChannelAdapter {
     generateAccessToken(identity: string): Promise<string>;
     private mapMediaType;
     private mapTwilioStatus;
+    /**
+     * Map Messaging API status to internal status
+     * https://www.twilio.com/docs/sms/api/message-resource#message-status-values
+     */
+    private mapMessagingApiStatus;
 }
 //# sourceMappingURL=whatsapp.adapter.d.ts.map

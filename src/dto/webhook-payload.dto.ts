@@ -2,13 +2,14 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsNotEmpty, IsOptional, IsString } from 'class-validator';
 
 /**
- * Twilio Webhook Payload
+ * Twilio Conversations API Webhook Payload
  * https://www.twilio.com/docs/conversations/conversations-webhooks
  */
 export class TwilioWebhookDto {
-  @ApiProperty({ description: 'Event type' })
+  @ApiPropertyOptional({ description: 'Event type (Conversations API)' })
+  @IsOptional()
   @IsString()
-  EventType!: string;
+  EventType?: string;
 
   @ApiPropertyOptional({ description: 'Conversation SID' })
   @IsOptional()
@@ -59,6 +60,58 @@ export class TwilioWebhookDto {
   @IsOptional()
   @IsString()
   DateCreated?: string;
+
+  // ===== Messaging API fields (Sandbox/WhatsApp) =====
+
+  @ApiPropertyOptional({ description: 'SMS Message SID (Messaging API)' })
+  @IsOptional()
+  @IsString()
+  SmsMessageSid?: string;
+
+  @ApiPropertyOptional({ description: 'SMS Status (Messaging API)' })
+  @IsOptional()
+  @IsString()
+  SmsStatus?: string;
+
+  @ApiPropertyOptional({ description: 'From number (Messaging API)' })
+  @IsOptional()
+  @IsString()
+  From?: string;
+
+  @ApiPropertyOptional({ description: 'To number (Messaging API)' })
+  @IsOptional()
+  @IsString()
+  To?: string;
+
+  @ApiPropertyOptional({ description: 'Profile name (Messaging API - WhatsApp)' })
+  @IsOptional()
+  @IsString()
+  ProfileName?: string;
+
+  @ApiPropertyOptional({ description: 'WhatsApp ID (Messaging API)' })
+  @IsOptional()
+  @IsString()
+  WaId?: string;
+
+  @ApiPropertyOptional({ description: 'Number of media attachments' })
+  @IsOptional()
+  @IsString()
+  NumMedia?: string;
+
+  @ApiPropertyOptional({ description: 'Number of segments' })
+  @IsOptional()
+  @IsString()
+  NumSegments?: string;
+
+  @ApiPropertyOptional({ description: 'Referral info (WhatsApp ads)' })
+  @IsOptional()
+  @IsString()
+  ReferralNumMedia?: string;
+
+  @ApiPropertyOptional({ description: 'API Version' })
+  @IsOptional()
+  @IsString()
+  ApiVersion?: string;
 }
 
 /**
