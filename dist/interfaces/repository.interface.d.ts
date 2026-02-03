@@ -28,6 +28,7 @@ export interface IConversationRepository {
         search?: string;
         page?: number;
         limit?: number;
+        customerId?: number;
     }): Promise<PaginatedResult<IConversation>>;
     findOne(id: number): Promise<IConversation | null>;
     findByChannelConversationId(channelConversationId: string): Promise<IConversation | null>;
@@ -35,6 +36,9 @@ export interface IConversationRepository {
     update(id: number, data: UpdateConversationData): Promise<IConversation>;
     incrementUnreadCount(id: number): Promise<void>;
     updateLastMessage(id: number, preview: string, timestamp: Date): Promise<void>;
+    linkCustomer?(id: number, customerId: number): Promise<void>;
+    findArchivable?(cutoffDate: Date, limit: number): Promise<IConversation[]>;
+    findArchivedByCustomer?(customerId: number): Promise<IConversation[]>;
 }
 /**
  * Message Repository 인터페이스
@@ -45,10 +49,12 @@ export interface IMessageRepository {
         limit?: number;
         before?: string;
     }): Promise<IMessage[]>;
+    findAllByConversation?(conversationId: number): Promise<IMessage[]>;
     findOne(id: number): Promise<IMessage | null>;
     findByChannelMessageId(channelMessageId: string): Promise<IMessage | null>;
     create(data: Partial<CreateMessageData>): Promise<IMessage>;
     updateStatus(channelMessageId: string, status: string): Promise<void>;
+    deleteByConversation?(conversationId: number): Promise<number>;
 }
 /**
  * QuickReply Repository 인터페이스

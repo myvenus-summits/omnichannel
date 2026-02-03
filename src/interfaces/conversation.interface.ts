@@ -10,12 +10,16 @@ export interface IConversation {
   channelConversationId: string;
   contactIdentifier: string;
   contactName: string | null;
+  customerId?: number | null;
   status: ConversationStatus;
   tags: string[];
   assignedUserId: number | null;
   unreadCount: number;
   lastMessageAt: Date | null;
   lastMessagePreview: string | null;
+  closedAt?: Date | null;
+  archivedAt?: Date | null;
+  archiveUrl?: string | null;
   metadata: Record<string, unknown> | null;
   createdAt: Date;
   updatedAt: Date;

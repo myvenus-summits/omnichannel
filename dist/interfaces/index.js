@@ -21,4 +21,5 @@ __exportStar(require("./contact-channel.interface"), exports);
 __exportStar(require("./quick-reply.interface"), exports);
 __exportStar(require("./repository.interface"), exports);
 __exportStar(require("./message-template.interface"), exports);
+__exportStar(require("./storage.interface"), exports);
 //# sourceMappingURL=index.js.map

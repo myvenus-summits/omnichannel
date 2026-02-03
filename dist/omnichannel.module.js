@@ -16,6 +16,7 @@ const instagram_adapter_1 = require("./adapters/instagram.adapter");
 const gateways_1 = require("./gateways");
 // Services
 const services_1 = require("./services");
+const storage_interface_1 = require("./interfaces/storage.interface");
 // Controllers
 const controllers_1 = require("./controllers");
 // Interfaces
@@ -156,6 +157,22 @@ let OmnichannelModule = OmnichannelModule_1 = class OmnichannelModule {
                     },
                     inject: [interfaces_1.OMNICHANNEL_MODULE_OPTIONS],
                 },
+                // Storage adapter (optional, for archive feature)
+                {
+                    provide: storage_interface_1.STORAGE_ADAPTER,
+                    useFactory: (opts) => {
+                        return opts.storageAdapter ?? null;
+                    },
+                    inject: [interfaces_1.OMNICHANNEL_MODULE_OPTIONS],
+                },
+                // Archived conversation repository (optional)
+                {
+                    provide: services_1.ARCHIVED_CONVERSATION_REPOSITORY,
+                    useFactory: (opts) => {
+                        return opts.repositories?.archivedConversationRepository ?? null;
+                    },
+                    inject: [interfaces_1.OMNICHANNEL_MODULE_OPTIONS],
+                },
                 whatsapp_adapter_1.WhatsAppAdapter,
                 instagram_adapter_1.InstagramAdapter,
                 gateways_1.OmnichannelGateway,
@@ -164,6 +181,7 @@ let OmnichannelModule = OmnichannelModule_1 = class OmnichannelModule {
                 services_1.WebhookService,
                 services_1.QuickReplyService,
                 services_1.TemplateService,
+                services_1.ArchiveService,
                 ...(options.extraProviders ?? []),
             ],
             exports: [
@@ -174,11 +192,14 @@ let OmnichannelModule = OmnichannelModule_1 = class OmnichannelModule {
                 interfaces_1.CONTACT_CHANNEL_REPOSITORY,
                 interfaces_1.MESSAGE_TEMPLATE_REPOSITORY,
                 interfaces_1.TEMPLATE_HISTORY_REPOSITORY,
+                storage_interface_1.STORAGE_ADAPTER,
+                services_1.ARCHIVED_CONVERSATION_REPOSITORY,
                 services_1.ConversationService,
                 services_1.MessageService,
                 services_1.WebhookService,
                 services_1.QuickReplyService,
                 services_1.TemplateService,
+                services_1.ArchiveService,
                 whatsapp_adapter_1.WhatsAppAdapter,
                 instagram_adapter_1.InstagramAdapter,
                 gateways_1.OmnichannelGateway,

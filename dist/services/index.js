@@ -19,4 +19,5 @@ __exportStar(require("./message.service"), exports);
 __exportStar(require("./webhook.service"), exports);
 __exportStar(require("./quick-reply.service"), exports);
 __exportStar(require("./template.service"), exports);
+__exportStar(require("./archive.service"), exports);
 //# sourceMappingURL=index.js.map

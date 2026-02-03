@@ -5,3 +5,4 @@ export * from './contact-channel.interface';
 export * from './quick-reply.interface';
 export * from './repository.interface';
 export * from './message-template.interface';
+export * from './storage.interface';

@@ -19,7 +19,11 @@ import {
   WebhookService,
   QuickReplyService,
   TemplateService,
+  ArchiveService,
+  ARCHIVED_CONVERSATION_REPOSITORY,
 } from './services';
+
+import { STORAGE_ADAPTER } from './interfaces/storage.interface';
 
 // Controllers
 import {
@@ -186,6 +190,22 @@ export class OmnichannelModule {
           },
           inject: [OMNICHANNEL_MODULE_OPTIONS],
         },
+        // Storage adapter (optional, for archive feature)
+        {
+          provide: STORAGE_ADAPTER,
+          useFactory: (opts: OmnichannelModuleOptions) => {
+            return opts.storageAdapter ?? null;
+          },
+          inject: [OMNICHANNEL_MODULE_OPTIONS],
+        },
+        // Archived conversation repository (optional)
+        {
+          provide: ARCHIVED_CONVERSATION_REPOSITORY,
+          useFactory: (opts: OmnichannelModuleOptions) => {
+            return opts.repositories?.archivedConversationRepository ?? null;
+          },
+          inject: [OMNICHANNEL_MODULE_OPTIONS],
+        },
         WhatsAppAdapter,
         InstagramAdapter,
         OmnichannelGateway,
@@ -194,6 +214,7 @@ export class OmnichannelModule {
         WebhookService,
         QuickReplyService,
         TemplateService,
+        ArchiveService,
         ...(options.extraProviders ?? []),
       ],
       exports: [
@@ -204,11 +225,14 @@ export class OmnichannelModule {
         CONTACT_CHANNEL_REPOSITORY,
         MESSAGE_TEMPLATE_REPOSITORY,
         TEMPLATE_HISTORY_REPOSITORY,
+        STORAGE_ADAPTER,
+        ARCHIVED_CONVERSATION_REPOSITORY,
         ConversationService,
         MessageService,
         WebhookService,
         QuickReplyService,
         TemplateService,
+        ArchiveService,
         WhatsAppAdapter,
         InstagramAdapter,
         OmnichannelGateway,

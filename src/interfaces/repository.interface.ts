@@ -30,6 +30,7 @@ export interface IConversationRepository {
     search?: string;
     page?: number;
     limit?: number;
+    customerId?: number;
   }): Promise<PaginatedResult<IConversation>>;
 
   findOne(id: number): Promise<IConversation | null>;
@@ -38,6 +39,11 @@ export interface IConversationRepository {
   update(id: number, data: UpdateConversationData): Promise<IConversation>;
   incrementUnreadCount(id: number): Promise<void>;
   updateLastMessage(id: number, preview: string, timestamp: Date): Promise<void>;
+  linkCustomer?(id: number, customerId: number): Promise<void>;
+
+  // Archive related methods
+  findArchivable?(cutoffDate: Date, limit: number): Promise<IConversation[]>;
+  findArchivedByCustomer?(customerId: number): Promise<IConversation[]>;
 }
 
 /**
@@ -50,10 +56,15 @@ export interface IMessageRepository {
     options?: { limit?: number; before?: string },
   ): Promise<IMessage[]>;
 
+  findAllByConversation?(conversationId: number): Promise<IMessage[]>;
+
   findOne(id: number): Promise<IMessage | null>;
   findByChannelMessageId(channelMessageId: string): Promise<IMessage | null>;
   create(data: Partial<CreateMessageData>): Promise<IMessage>;
   updateStatus(channelMessageId: string, status: string): Promise<void>;
+
+  // Archive related methods
+  deleteByConversation?(conversationId: number): Promise<number>;
 }
 
 /**

@@ -15,6 +15,8 @@ import type {
   IMessageTemplateRepository,
   ITemplateHistoryRepository,
 } from './message-template.interface';
+import type { IStorageAdapter } from './storage.interface';
+import type { IArchivedConversationRepository } from '../services/archive.service';
 
 /**
  * Twilio 설정
@@ -82,6 +84,12 @@ export interface RepositoryConfig {
    * TemplateHistory Repository 구현체 (선택)
    */
   templateHistoryRepository?: ITemplateHistoryRepository;
+
+  /**
+   * ArchivedConversation Repository 구현체 (선택)
+   * 아카이브된 대화 목록 저장용
+   */
+  archivedConversationRepository?: IArchivedConversationRepository;
 }
 
 /**
@@ -121,6 +129,12 @@ export interface OmnichannelModuleOptions {
    * @default true
    */
   enableControllers?: boolean;
+
+  /**
+   * Storage adapter for archiving
+   * Implement IStorageAdapter (e.g., S3StorageAdapter)
+   */
+  storageAdapter?: IStorageAdapter;
 }
 
 /**
