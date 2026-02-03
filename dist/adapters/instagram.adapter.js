@@ -243,6 +243,33 @@ let InstagramAdapter = InstagramAdapter_1 = class InstagramAdapter {
         return token === this.webhookVerifyToken;
     }
     /**
+     * Fetch Instagram user profile (username, name)
+     */
+    async fetchUserProfile(userId) {
+        try {
+            if (!this.accessToken) {
+                throw new Error('Instagram access token not configured');
+            }
+            const url = `${this.graphBaseUrl}/${this.apiVersion}/${userId}?fields=username,name`;
+            const response = await fetch(url, {
+                headers: {
+                    Authorization: `Bearer ${this.accessToken}`,
+                },
+            });
+            if (!response.ok) {
+                this.logger.warn(`Failed to fetch Instagram user profile: ${response.status}`);
+                return null;
+            }
+            const data = await response.json();
+            this.logger.log(`Fetched Instagram profile for ${userId}: @${data.username}`);
+            return data;
+        }
+        catch (error) {
+            this.logger.error(`Failed to fetch Instagram user profile for ${userId}`, error);
+            return null;
+        }
+    }
+    /**
      * Build message payload based on content type
      */
     buildMessagePayload(content) {

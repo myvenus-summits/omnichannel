@@ -41,6 +41,14 @@ export declare class InstagramAdapter implements ChannelAdapter {
      */
     verifyWebhook(token: string): boolean;
     /**
+     * Fetch Instagram user profile (username, name)
+     */
+    fetchUserProfile(userId: string): Promise<{
+        id: string;
+        username?: string;
+        name?: string;
+    } | null>;
+    /**
      * Build message payload based on content type
      */
     private buildMessagePayload;

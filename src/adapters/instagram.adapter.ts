@@ -316,6 +316,46 @@ export class InstagramAdapter implements ChannelAdapter {
   }
 
   /**
+   * Fetch Instagram user profile (username, name)
+   */
+  async fetchUserProfile(userId: string): Promise<{
+    id: string;
+    username?: string;
+    name?: string;
+  } | null> {
+    try {
+      if (!this.accessToken) {
+        throw new Error('Instagram access token not configured');
+      }
+
+      const url = `${this.graphBaseUrl}/${this.apiVersion}/${userId}?fields=username,name`;
+
+      const response = await fetch(url, {
+        headers: {
+          Authorization: `Bearer ${this.accessToken}`,
+        },
+      });
+
+      if (!response.ok) {
+        this.logger.warn(`Failed to fetch Instagram user profile: ${response.status}`);
+        return null;
+      }
+
+      const data = await response.json() as {
+        id: string;
+        username?: string;
+        name?: string;
+      };
+
+      this.logger.log(`Fetched Instagram profile for ${userId}: @${data.username}`);
+      return data;
+    } catch (error) {
+      this.logger.error(`Failed to fetch Instagram user profile for ${userId}`, error);
+      return null;
+    }
+  }
+
+  /**
    * Build message payload based on content type
    */
   private buildMessagePayload(content: MessageContent): Record<string, unknown> {

@@ -121,12 +121,28 @@ export class WebhookService {
 
     const isNewConversation = !conversation;
 
+    // Fetch Instagram username if not available
+    let contactName = event.contactName ?? null;
+    if (channel === 'instagram' && event.contactIdentifier) {
+      // Check if contactName is missing or looks like a numeric ID
+      const needsUsernameResolution = !contactName || /^\d+$/.test(contactName);
+      
+      if (needsUsernameResolution) {
+        this.logger.log(`Fetching Instagram username for: ${event.contactIdentifier}`);
+        const profile = await this.instagramAdapter.fetchUserProfile(event.contactIdentifier);
+        if (profile?.username) {
+          contactName = `@${profile.username}`;
+          this.logger.log(`Resolved Instagram username: ${contactName}`);
+        }
+      }
+    }
+
     if (!conversation) {
       conversation = await this.conversationRepository.create({
         channel,
         channelConversationId: event.channelConversationId,
         contactIdentifier: event.contactIdentifier,
-        contactName: event.contactName ?? null,
+        contactName,
         status: 'open',
         tags: [],
         assignedUserId: null,
@@ -136,6 +152,11 @@ export class WebhookService {
         metadata: null,
       });
       this.logger.log(`Created new conversation: ${conversation.id}`);
+    } else if (channel === 'instagram' && contactName && !conversation.contactName) {
+      // Update existing conversation with resolved username
+      await this.conversationRepository.update(conversation.id, { contactName });
+      conversation.contactName = contactName;
+      this.logger.log(`Updated conversation ${conversation.id} with Instagram username: ${contactName}`);
     }
 
     // Check if message already exists
@@ -148,12 +169,16 @@ export class WebhookService {
       return;
     }
 
-    // Create message
+    // Create message (use resolved contactName for inbound messages)
+    const senderName = event.message.direction === 'inbound' && contactName
+      ? contactName
+      : event.message.senderName ?? null;
+
     const message = await this.messageRepository.create({
       conversationId: conversation.id,
       channelMessageId: event.message.channelMessageId,
       direction: event.message.direction,
-      senderName: event.message.senderName ?? null,
+      senderName,
       senderUserId: null,
       contentType: event.message.contentType,
       contentText: event.message.contentText ?? null,
