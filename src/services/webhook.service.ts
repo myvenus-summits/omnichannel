@@ -19,6 +19,7 @@ export class WebhookService {
   private readonly logger = new Logger(WebhookService.name);
   private readonly appUrl: string;
   private readonly metaWebhookVerifyToken: string;
+  private readonly webhookChannelResolver: import('../interfaces').WebhookChannelResolver | null;
 
   constructor(
     @Optional()
@@ -36,6 +37,7 @@ export class WebhookService {
   ) {
     this.appUrl = options?.appUrl ?? '';
     this.metaWebhookVerifyToken = options?.meta?.webhookVerifyToken ?? '';
+    this.webhookChannelResolver = options?.webhookChannelResolver ?? null;
     
     // Gateway 주입 확인 로그
     if (!this.omnichannelGateway) {
@@ -114,6 +116,27 @@ export class WebhookService {
   ): Promise<void> {
     if (!event.message) return;
 
+    // Resolve clinic/channel config from webhook identifier (멀티테넌트)
+    let clinicId: number | null = null;
+    let regionId: number | null = null;
+    let channelConfigId: number | null = null;
+
+    if (this.webhookChannelResolver) {
+      try {
+        const resolved = await this.webhookChannelResolver(
+          channel,
+          event.contactIdentifier,
+        );
+        if (resolved) {
+          clinicId = resolved.clinicId;
+          regionId = resolved.regionId ?? null;
+          channelConfigId = resolved.channelConfigId;
+        }
+      } catch (error) {
+        this.logger.warn(`Failed to resolve channel config: ${error}`);
+      }
+    }
+
     // Find or create conversation
     let conversation = await this.conversationRepository.findByChannelConversationId(
       event.channelConversationId,
@@ -134,8 +157,11 @@ export class WebhookService {
         lastMessageAt: null,
         lastMessagePreview: null,
         metadata: null,
+        clinicId,
+        regionId,
+        channelConfigId,
       });
-      this.logger.log(`Created new conversation: ${conversation.id}`);
+      this.logger.log(`Created new conversation: ${conversation.id} (clinic: ${clinicId})`);
     }
 
     // Check if message already exists
