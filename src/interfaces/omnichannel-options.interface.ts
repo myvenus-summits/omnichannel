@@ -93,6 +93,33 @@ export interface RepositoryConfig {
 }
 
 /**
+ * Channel Credentials Resolver
+ * 채널 설정 ID로 동적으로 credentials를 가져오는 콜백
+ * @since 1.1.0
+ */
+export type ChannelCredentialsResolver = (
+  channelConfigId: number,
+) => Promise<{ twilio?: TwilioConfig; meta?: MetaConfig }>;
+
+/**
+ * Channel Config Resolver (webhook 수신 시 사용)
+ * 수신 식별자(전화번호, IG 계정 등)로 channel config를 조회
+ * @since 1.1.0
+ */
+export interface ResolvedChannelConfig {
+  channelConfigId: number;
+  clinicId: number;
+  regionId?: number;
+  twilio?: TwilioConfig;
+  meta?: MetaConfig;
+}
+
+export type WebhookChannelResolver = (
+  channel: string,
+  identifier: string,
+) => Promise<ResolvedChannelConfig | null>;
+
+/**
  * Omnichannel 모듈 설정 옵션
  */
 export interface OmnichannelModuleOptions {
@@ -104,13 +131,30 @@ export interface OmnichannelModuleOptions {
 
   /**
    * Twilio 설정 (WhatsApp용)
+   * 싱글테넌트 또는 기본 credentials로 사용
    */
   twilio?: TwilioConfig;
 
   /**
    * Meta 설정 (Instagram/Messenger용)
+   * 싱글테넌트 또는 기본 credentials로 사용
    */
   meta?: MetaConfig;
+
+  /**
+   * 채널 설정 ID로 동적 credentials 조회
+   * 멀티테넌트 환경에서 병원별 credentials를 가져올 때 사용
+   * 설정 시 twilio/meta 기본값보다 우선
+   * @since 1.1.0
+   */
+  channelCredentialsResolver?: ChannelCredentialsResolver;
+
+  /**
+   * Webhook 수신 시 수신 식별자로 channel config 조회
+   * 멀티테넌트 환경에서 webhook → clinic 매핑에 사용
+   * @since 1.1.0
+   */
+  webhookChannelResolver?: WebhookChannelResolver;
 
   /**
    * 애플리케이션 URL (웹훅 검증용)

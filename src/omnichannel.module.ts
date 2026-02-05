@@ -129,6 +129,7 @@ export class OmnichannelModule {
 
     return {
       module: OmnichannelModule,
+      global: true, // MessageService 등을 전역에서 사용 가능하게
       imports: [...(options.imports ?? [])],
       controllers: [
         ConversationController,

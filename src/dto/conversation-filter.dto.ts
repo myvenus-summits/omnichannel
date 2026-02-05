@@ -68,6 +68,33 @@ export class ConversationFilterDto {
   search?: string;
 
   @ApiPropertyOptional({
+    description: '병원 ID 필터 (멀티테넌트)',
+    example: 1,
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  clinicId?: number;
+
+  @ApiPropertyOptional({
+    description: '지역 ID 필터 (멀티테넌트)',
+    example: 1,
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  regionId?: number;
+
+  @ApiPropertyOptional({
+    description: '채널 설정 ID 필터',
+    example: 1,
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  channelConfigId?: number;
+
+  @ApiPropertyOptional({
     description: '페이지 번호',
     default: 1,
     minimum: 1,

@@ -21,6 +21,25 @@ export interface IConversation {
   archivedAt?: Date | null;
   archiveUrl?: string | null;
   metadata: Record<string, unknown> | null;
+
+  /**
+   * 병원 ID (멀티테넌트)
+   * @since 1.1.0
+   */
+  clinicId?: number | null;
+
+  /**
+   * 지역 ID (멀티테넌트)
+   * @since 1.1.0
+   */
+  regionId?: number | null;
+
+  /**
+   * 채널 설정 ID (clinic_channel_config FK)
+   * @since 1.1.0
+   */
+  channelConfigId?: number | null;
+
   createdAt: Date;
   updatedAt: Date;
 }

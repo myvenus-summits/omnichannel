@@ -20,6 +20,9 @@ class ConversationFilterDto {
     unassigned;
     tags;
     search;
+    clinicId;
+    regionId;
+    channelConfigId;
     page = 1;
     limit = 20;
 }
@@ -83,6 +86,36 @@ __decorate([
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], ConversationFilterDto.prototype, "search", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({
+        description: '병원 ID 필터 (멀티테넌트)',
+        example: 1,
+    }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_transformer_1.Type)(() => Number),
+    (0, class_validator_1.IsNumber)(),
+    __metadata("design:type", Number)
+], ConversationFilterDto.prototype, "clinicId", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({
+        description: '지역 ID 필터 (멀티테넌트)',
+        example: 1,
+    }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_transformer_1.Type)(() => Number),
+    (0, class_validator_1.IsNumber)(),
+    __metadata("design:type", Number)
+], ConversationFilterDto.prototype, "regionId", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({
+        description: '채널 설정 ID 필터',
+        example: 1,
+    }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_transformer_1.Type)(() => Number),
+    (0, class_validator_1.IsNumber)(),
+    __metadata("design:type", Number)
+], ConversationFilterDto.prototype, "channelConfigId", void 0);
 __decorate([
     (0, swagger_1.ApiPropertyOptional)({
         description: '페이지 번호',
