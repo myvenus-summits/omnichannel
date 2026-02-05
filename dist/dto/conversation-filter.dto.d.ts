@@ -6,6 +6,9 @@ export declare class ConversationFilterDto {
     unassigned?: boolean;
     tags?: string[];
     search?: string;
+    clinicId?: number;
+    regionId?: number;
+    channelConfigId?: number;
     page?: number;
     limit?: number;
 }

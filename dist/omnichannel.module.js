@@ -95,6 +95,7 @@ let OmnichannelModule = OmnichannelModule_1 = class OmnichannelModule {
         const asyncProviders = this.createAsyncProviders(options);
         return {
             module: OmnichannelModule_1,
+            global: true, // MessageService 등을 전역에서 사용 가능하게
             imports: [...(options.imports ?? [])],
             controllers: [
                 controllers_1.ConversationController,
