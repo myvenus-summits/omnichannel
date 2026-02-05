@@ -85,7 +85,7 @@ export type ChannelCredentialsResolver = (channelConfigId: number) => Promise<{
 export interface ResolvedChannelConfig {
     channelConfigId: number;
     clinicId: number;
-    regionId?: number;
+    regionId?: number | string;
     twilio?: TwilioConfig;
     meta?: MetaConfig;
 }

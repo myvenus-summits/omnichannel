@@ -118,7 +118,7 @@ export class WebhookService {
 
     // Resolve clinic/channel config from webhook identifier (멀티테넌트)
     let clinicId: number | null = null;
-    let regionId: number | null = null;
+    let regionId: number | string | null = null;
     let channelConfigId: number | null = null;
 
     if (this.webhookChannelResolver) {
