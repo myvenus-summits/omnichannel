@@ -34,7 +34,7 @@ export interface IConversationRepository {
     /** @since 1.1.0 멀티테넌트 필터 */
     clinicId?: number;
     /** @since 1.1.0 멀티테넌트 필터 */
-    regionId?: number;
+    regionId?: number | string;
     /** @since 1.1.0 채널 설정 필터 */
     channelConfigId?: number;
   }): Promise<PaginatedResult<IConversation>>;
