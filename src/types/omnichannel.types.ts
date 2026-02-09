@@ -50,6 +50,7 @@ export interface NormalizedWebhookEvent {
   channelConversationId: string;
   contactIdentifier: string;
   contactName?: string;
+  channelAccountId?: string;
   message?: NormalizedMessage;
   status?: {
     messageId: string;

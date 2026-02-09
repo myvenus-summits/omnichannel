@@ -113,7 +113,8 @@ let WebhookService = WebhookService_1 = class WebhookService {
         let channelConfigId = null;
         if (this.webhookChannelResolver) {
             try {
-                const resolved = await this.webhookChannelResolver(channel, event.contactIdentifier);
+                const resolverIdentifier = event.channelAccountId || event.contactIdentifier;
+                const resolved = await this.webhookChannelResolver(channel, resolverIdentifier);
                 if (resolved) {
                     clinicId = resolved.clinicId;
                     regionId = resolved.regionId ?? null;

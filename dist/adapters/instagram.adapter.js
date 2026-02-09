@@ -317,6 +317,7 @@ let InstagramAdapter = InstagramAdapter_1 = class InstagramAdapter {
                 type: 'message',
                 channelConversationId: this.buildConversationId(event.sender.id, event.recipient.id),
                 contactIdentifier: direction === 'inbound' ? event.sender.id : event.recipient.id,
+                channelAccountId: entryId,
                 message: {
                     channelMessageId: event.message.mid,
                     direction,
@@ -340,6 +341,7 @@ let InstagramAdapter = InstagramAdapter_1 = class InstagramAdapter {
                 type: 'status_update',
                 channelConversationId: this.buildConversationId(event.sender.id, event.recipient.id),
                 contactIdentifier: event.sender.id,
+                channelAccountId: entryId,
                 status: {
                     messageId: event.delivery.mids[0] ?? '',
                     status: 'delivered',
@@ -352,6 +354,7 @@ let InstagramAdapter = InstagramAdapter_1 = class InstagramAdapter {
                 type: 'status_update',
                 channelConversationId: this.buildConversationId(event.sender.id, event.recipient.id),
                 contactIdentifier: event.sender.id,
+                channelAccountId: entryId,
                 status: {
                     messageId: `read_${event.read.watermark}`,
                     status: 'read',
@@ -364,6 +367,7 @@ let InstagramAdapter = InstagramAdapter_1 = class InstagramAdapter {
                 type: 'message',
                 channelConversationId: this.buildConversationId(event.sender.id, event.recipient.id),
                 contactIdentifier: event.recipient.id,
+                channelAccountId: entryId,
                 message: {
                     channelMessageId: event.message.mid,
                     direction: 'outbound',

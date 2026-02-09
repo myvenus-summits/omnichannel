@@ -416,6 +416,7 @@ export class InstagramAdapter implements ChannelAdapter {
           event.recipient.id,
         ),
         contactIdentifier: direction === 'inbound' ? event.sender.id : event.recipient.id,
+        channelAccountId: entryId,
         message: {
           channelMessageId: event.message.mid,
           direction,
@@ -443,6 +444,7 @@ export class InstagramAdapter implements ChannelAdapter {
           event.recipient.id,
         ),
         contactIdentifier: event.sender.id,
+        channelAccountId: entryId,
         status: {
           messageId: event.delivery.mids[0] ?? '',
           status: 'delivered' as MessageStatus,
@@ -459,6 +461,7 @@ export class InstagramAdapter implements ChannelAdapter {
           event.recipient.id,
         ),
         contactIdentifier: event.sender.id,
+        channelAccountId: entryId,
         status: {
           messageId: `read_${event.read.watermark}`,
           status: 'read' as MessageStatus,
@@ -475,6 +478,7 @@ export class InstagramAdapter implements ChannelAdapter {
           event.recipient.id,
         ),
         contactIdentifier: event.recipient.id,
+        channelAccountId: entryId,
         message: {
           channelMessageId: event.message.mid,
           direction: 'outbound',

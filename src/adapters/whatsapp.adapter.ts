@@ -310,9 +310,10 @@ export class WhatsAppAdapter implements ChannelAdapter {
     // This is an incoming message
     // Determine direction: inbound if From is the customer (whatsapp:+xxx), outbound if from our number
     // Fix: Handle case when whatsappNumber is not configured (empty string check)
-    const isInbound = from.startsWith('whatsapp:') && 
+    const isInbound = from.startsWith('whatsapp:') &&
       (this.whatsappNumber ? !from.includes(this.whatsappNumber) : true);
     const direction: MessageDirection = isInbound ? 'inbound' : 'outbound';
+    const businessNumber = isInbound ? to : from;
 
     // Use From as conversation ID (each sender gets their own conversation)
     const conversationId = isInbound ? from : to;
@@ -345,6 +346,7 @@ export class WhatsAppAdapter implements ChannelAdapter {
       type: 'message',
       channelConversationId: conversationId,
       contactIdentifier,
+      channelAccountId: businessNumber,
       contactName: twilioPayload.ProfileName ?? undefined,
       message: {
         channelMessageId: messageSid ?? '',

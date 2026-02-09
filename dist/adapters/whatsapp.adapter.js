@@ -249,6 +249,7 @@ let WhatsAppAdapter = WhatsAppAdapter_1 = class WhatsAppAdapter {
         const isInbound = from.startsWith('whatsapp:') &&
             (this.whatsappNumber ? !from.includes(this.whatsappNumber) : true);
         const direction = isInbound ? 'inbound' : 'outbound';
+        const businessNumber = isInbound ? to : from;
         // Use From as conversation ID (each sender gets their own conversation)
         const conversationId = isInbound ? from : to;
         const contactIdentifier = isInbound ? from : to;
@@ -272,6 +273,7 @@ let WhatsAppAdapter = WhatsAppAdapter_1 = class WhatsAppAdapter {
             type: 'message',
             channelConversationId: conversationId,
             contactIdentifier,
+            channelAccountId: businessNumber,
             contactName: twilioPayload.ProfileName ?? undefined,
             message: {
                 channelMessageId: messageSid ?? '',

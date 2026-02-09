@@ -123,9 +123,10 @@ export class WebhookService {
 
     if (this.webhookChannelResolver) {
       try {
+        const resolverIdentifier = event.channelAccountId || event.contactIdentifier;
         const resolved = await this.webhookChannelResolver(
           channel,
-          event.contactIdentifier,
+          resolverIdentifier,
         );
         if (resolved) {
           clinicId = resolved.clinicId;
