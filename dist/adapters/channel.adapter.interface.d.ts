@@ -1,4 +1,14 @@
 import type { MessageContent, SendMessageResult, NormalizedWebhookEvent, NormalizedMessage, ChannelType } from '../types';
+import type { TwilioConfig, MetaConfig } from '../interfaces';
+/**
+ * 어댑터에 전달할 credentials override
+ * 멀티테넌트 환경에서 병원별 credentials를 동적으로 전달
+ * @since 1.2.0
+ */
+export interface AdapterCredentialsOverride {
+    twilio?: TwilioConfig;
+    meta?: MetaConfig;
+}
 /**
  * Channel Adapter Interface
  * 각 메시징 채널(WhatsApp, Instagram, LINE 등)에서 구현해야 하는 인터페이스
@@ -9,15 +19,17 @@ export interface ChannelAdapter {
      * 메시지 발송
      * @param to 수신자 식별자 (전화번호, 사용자명 등)
      * @param content 메시지 내용
+     * @param credentials 동적 credentials override (멀티테넌트)
      */
-    sendMessage(to: string, content: MessageContent): Promise<SendMessageResult>;
+    sendMessage(to: string, content: MessageContent, credentials?: AdapterCredentialsOverride): Promise<SendMessageResult>;
     /**
      * 템플릿 메시지 발송 (WhatsApp HSM 등)
      * @param to 수신자 식별자
      * @param templateId 템플릿 ID
      * @param variables 템플릿 변수
+     * @param credentials 동적 credentials override (멀티테넌트)
      */
-    sendTemplateMessage(to: string, templateId: string, variables: Record<string, string>): Promise<SendMessageResult>;
+    sendTemplateMessage(to: string, templateId: string, variables: Record<string, string>, credentials?: AdapterCredentialsOverride): Promise<SendMessageResult>;
     /**
      * Webhook 페이로드 파싱
      * @param payload 원본 webhook 페이로드

@@ -21,15 +21,33 @@ const instagram_adapter_1 = require("../adapters/instagram.adapter");
 const conversation_service_1 = require("./conversation.service");
 let MessageService = MessageService_1 = class MessageService {
     messageRepository;
+    moduleOptions;
     whatsappAdapter;
     instagramAdapter;
     conversationService;
     logger = new common_1.Logger(MessageService_1.name);
-    constructor(messageRepository, whatsappAdapter, instagramAdapter, conversationService) {
+    constructor(messageRepository, moduleOptions, whatsappAdapter, instagramAdapter, conversationService) {
         this.messageRepository = messageRepository;
+        this.moduleOptions = moduleOptions;
         this.whatsappAdapter = whatsappAdapter;
         this.instagramAdapter = instagramAdapter;
         this.conversationService = conversationService;
+    }
+    /**
+     * channelConfigId로 동적 credentials 조회
+     */
+    async resolveCredentials(channelConfigId) {
+        if (!channelConfigId || !this.moduleOptions?.channelCredentialsResolver) {
+            return undefined;
+        }
+        try {
+            const creds = await this.moduleOptions.channelCredentialsResolver(channelConfigId);
+            return creds;
+        }
+        catch (error) {
+            this.logger.warn(`Failed to resolve credentials for channelConfigId=${channelConfigId}`, error);
+            return undefined;
+        }
     }
     async findByConversation(conversationId, options) {
         return this.messageRepository.findByConversation(conversationId, options);
@@ -46,12 +64,14 @@ let MessageService = MessageService_1 = class MessageService {
     }
     async sendMessage(conversationId, dto, senderUserId) {
         const conversation = await this.conversationService.findOne(conversationId);
+        // 멀티테넌트: conversation의 channelConfigId로 credentials 조회
+        const credentials = await this.resolveCredentials(conversation.channelConfigId);
         let result;
         const adapter = conversation.channel === 'instagram'
             ? this.instagramAdapter
             : this.whatsappAdapter;
         if (dto.contentType === 'template' && dto.templateId) {
-            result = await adapter.sendTemplateMessage(conversation.contactIdentifier, dto.templateId, dto.templateVariables ?? {});
+            result = await adapter.sendTemplateMessage(conversation.contactIdentifier, dto.templateId, dto.templateVariables ?? {}, credentials);
         }
         else {
             const messageType = dto.contentType === 'text'
@@ -63,7 +83,7 @@ let MessageService = MessageService_1 = class MessageService {
                 type: messageType,
                 text: dto.contentText,
                 mediaUrl: dto.contentMediaUrl,
-            });
+            }, credentials);
         }
         if (!result.success) {
             throw new Error(`Failed to send message: ${result.error}`);
@@ -115,7 +135,9 @@ exports.MessageService = MessageService;
 exports.MessageService = MessageService = MessageService_1 = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, common_1.Inject)(interfaces_1.MESSAGE_REPOSITORY)),
-    __metadata("design:paramtypes", [Object, whatsapp_adapter_1.WhatsAppAdapter,
+    __param(1, (0, common_1.Optional)()),
+    __param(1, (0, common_1.Inject)(interfaces_1.OMNICHANNEL_MODULE_OPTIONS)),
+    __metadata("design:paramtypes", [Object, Object, whatsapp_adapter_1.WhatsAppAdapter,
         instagram_adapter_1.InstagramAdapter,
         conversation_service_1.ConversationService])
 ], MessageService);

@@ -1,5 +1,5 @@
 import { Injectable, Logger, Inject, Optional } from '@nestjs/common';
-import type { ChannelAdapter } from './channel.adapter.interface';
+import type { ChannelAdapter, AdapterCredentialsOverride } from './channel.adapter.interface';
 import type {
   MessageContent,
   SendMessageResult,
@@ -86,30 +86,46 @@ export class InstagramAdapter implements ChannelAdapter {
   }
 
   /**
+   * Resolve credentials: override가 있으면 override 사용, 없으면 기본값 사용
+   */
+  private resolveCredentials(credentials?: AdapterCredentialsOverride) {
+    const meta = credentials?.meta;
+    return {
+      accessToken: meta?.accessToken || this.accessToken,
+      pageId: meta?.pageId || this.pageId,
+      instagramBusinessAccountId:
+        meta?.instagramBusinessAccountId || this.instagramBusinessAccountId,
+    };
+  }
+
+  /**
    * Send a message via Instagram Messaging API (using Facebook Graph API)
    * https://developers.facebook.com/docs/instagram-platform/instagram-api-with-instagram-login/messaging-api
    */
   async sendMessage(
     to: string,
     content: MessageContent,
+    credentials?: AdapterCredentialsOverride,
   ): Promise<SendMessageResult> {
     try {
-      if (!this.accessToken) {
+      const resolved = this.resolveCredentials(credentials);
+      if (!resolved.accessToken) {
         throw new Error('Instagram access token not configured');
       }
-      if (!this.pageId) {
-        throw new Error('Instagram page ID not configured');
+      const endpointId = resolved.pageId || resolved.instagramBusinessAccountId;
+      if (!endpointId) {
+        throw new Error('Instagram page ID or account ID not configured');
       }
 
       const messagePayload = this.buildMessagePayload(content);
       // Instagram Messaging uses the Facebook Graph API endpoint
-      const url = `${this.graphBaseUrl}/${this.apiVersion}/${this.pageId}/messages`;
+      const url = `${this.graphBaseUrl}/${this.apiVersion}/${endpointId}/messages`;
 
       const response = await fetch(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${this.accessToken}`,
+          Authorization: `Bearer ${resolved.accessToken}`,
         },
         body: JSON.stringify({
           recipient: { id: to },
@@ -127,7 +143,7 @@ export class InstagramAdapter implements ChannelAdapter {
         };
       }
 
-      this.logger.log(`Message sent to Instagram user ${to}: ${result.message_id}`);
+      this.logger.log(`Message sent to Instagram user ${to} via ${endpointId}: ${result.message_id}`);
 
       return {
         success: true,
@@ -150,23 +166,26 @@ export class InstagramAdapter implements ChannelAdapter {
     to: string,
     templateId: string,
     variables: Record<string, string>,
+    credentials?: AdapterCredentialsOverride,
   ): Promise<SendMessageResult> {
     try {
-      if (!this.accessToken) {
+      const resolved = this.resolveCredentials(credentials);
+      if (!resolved.accessToken) {
         throw new Error('Instagram access token not configured');
       }
-      if (!this.pageId) {
-        throw new Error('Instagram page ID not configured');
+      const endpointId = resolved.pageId || resolved.instagramBusinessAccountId;
+      if (!endpointId) {
+        throw new Error('Instagram page ID or account ID not configured');
       }
 
       // Instagram uses generic templates for structured messages
-      const url = `${this.graphBaseUrl}/${this.apiVersion}/${this.pageId}/messages`;
+      const url = `${this.graphBaseUrl}/${this.apiVersion}/${endpointId}/messages`;
 
       const response = await fetch(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${this.accessToken}`,
+          Authorization: `Bearer ${resolved.accessToken}`,
         },
         body: JSON.stringify({
           recipient: { id: to },

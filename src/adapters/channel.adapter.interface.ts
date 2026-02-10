@@ -5,6 +5,17 @@ import type {
   NormalizedMessage,
   ChannelType,
 } from '../types';
+import type { TwilioConfig, MetaConfig } from '../interfaces';
+
+/**
+ * 어댑터에 전달할 credentials override
+ * 멀티테넌트 환경에서 병원별 credentials를 동적으로 전달
+ * @since 1.2.0
+ */
+export interface AdapterCredentialsOverride {
+  twilio?: TwilioConfig;
+  meta?: MetaConfig;
+}
 
 /**
  * Channel Adapter Interface
@@ -17,19 +28,26 @@ export interface ChannelAdapter {
    * 메시지 발송
    * @param to 수신자 식별자 (전화번호, 사용자명 등)
    * @param content 메시지 내용
+   * @param credentials 동적 credentials override (멀티테넌트)
    */
-  sendMessage(to: string, content: MessageContent): Promise<SendMessageResult>;
+  sendMessage(
+    to: string,
+    content: MessageContent,
+    credentials?: AdapterCredentialsOverride,
+  ): Promise<SendMessageResult>;
 
   /**
    * 템플릿 메시지 발송 (WhatsApp HSM 등)
    * @param to 수신자 식별자
    * @param templateId 템플릿 ID
    * @param variables 템플릿 변수
+   * @param credentials 동적 credentials override (멀티테넌트)
    */
   sendTemplateMessage(
     to: string,
     templateId: string,
     variables: Record<string, string>,
+    credentials?: AdapterCredentialsOverride,
   ): Promise<SendMessageResult>;
 
   /**

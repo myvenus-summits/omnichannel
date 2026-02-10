@@ -47,25 +47,38 @@ let InstagramAdapter = InstagramAdapter_1 = class InstagramAdapter {
         }
     }
     /**
+     * Resolve credentials: override가 있으면 override 사용, 없으면 기본값 사용
+     */
+    resolveCredentials(credentials) {
+        const meta = credentials?.meta;
+        return {
+            accessToken: meta?.accessToken || this.accessToken,
+            pageId: meta?.pageId || this.pageId,
+            instagramBusinessAccountId: meta?.instagramBusinessAccountId || this.instagramBusinessAccountId,
+        };
+    }
+    /**
      * Send a message via Instagram Messaging API (using Facebook Graph API)
      * https://developers.facebook.com/docs/instagram-platform/instagram-api-with-instagram-login/messaging-api
      */
-    async sendMessage(to, content) {
+    async sendMessage(to, content, credentials) {
         try {
-            if (!this.accessToken) {
+            const resolved = this.resolveCredentials(credentials);
+            if (!resolved.accessToken) {
                 throw new Error('Instagram access token not configured');
             }
-            if (!this.pageId) {
-                throw new Error('Instagram page ID not configured');
+            const endpointId = resolved.pageId || resolved.instagramBusinessAccountId;
+            if (!endpointId) {
+                throw new Error('Instagram page ID or account ID not configured');
             }
             const messagePayload = this.buildMessagePayload(content);
             // Instagram Messaging uses the Facebook Graph API endpoint
-            const url = `${this.graphBaseUrl}/${this.apiVersion}/${this.pageId}/messages`;
+            const url = `${this.graphBaseUrl}/${this.apiVersion}/${endpointId}/messages`;
             const response = await fetch(url, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    Authorization: `Bearer ${this.accessToken}`,
+                    Authorization: `Bearer ${resolved.accessToken}`,
                 },
                 body: JSON.stringify({
                     recipient: { id: to },
@@ -80,7 +93,7 @@ let InstagramAdapter = InstagramAdapter_1 = class InstagramAdapter {
                     error: result.error?.message ?? 'Unknown Instagram API error',
                 };
             }
-            this.logger.log(`Message sent to Instagram user ${to}: ${result.message_id}`);
+            this.logger.log(`Message sent to Instagram user ${to} via ${endpointId}: ${result.message_id}`);
             return {
                 success: true,
                 channelMessageId: result.message_id,
@@ -98,21 +111,23 @@ let InstagramAdapter = InstagramAdapter_1 = class InstagramAdapter {
      * Send a template message (Instagram generic template)
      * Note: Instagram has limited template support compared to Messenger
      */
-    async sendTemplateMessage(to, templateId, variables) {
+    async sendTemplateMessage(to, templateId, variables, credentials) {
         try {
-            if (!this.accessToken) {
+            const resolved = this.resolveCredentials(credentials);
+            if (!resolved.accessToken) {
                 throw new Error('Instagram access token not configured');
             }
-            if (!this.pageId) {
-                throw new Error('Instagram page ID not configured');
+            const endpointId = resolved.pageId || resolved.instagramBusinessAccountId;
+            if (!endpointId) {
+                throw new Error('Instagram page ID or account ID not configured');
             }
             // Instagram uses generic templates for structured messages
-            const url = `${this.graphBaseUrl}/${this.apiVersion}/${this.pageId}/messages`;
+            const url = `${this.graphBaseUrl}/${this.apiVersion}/${endpointId}/messages`;
             const response = await fetch(url, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    Authorization: `Bearer ${this.accessToken}`,
+                    Authorization: `Bearer ${resolved.accessToken}`,
                 },
                 body: JSON.stringify({
                     recipient: { id: to },

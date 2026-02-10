@@ -1,4 +1,4 @@
-import type { ChannelAdapter } from './channel.adapter.interface';
+import type { ChannelAdapter, AdapterCredentialsOverride } from './channel.adapter.interface';
 import type { MessageContent, SendMessageResult, NormalizedWebhookEvent, NormalizedMessage, ChannelType } from '../types';
 import { type OmnichannelModuleOptions } from '../interfaces';
 export declare class WhatsAppAdapter implements ChannelAdapter {
@@ -13,11 +13,15 @@ export declare class WhatsAppAdapter implements ChannelAdapter {
     readonly channel: ChannelType;
     constructor(options?: OmnichannelModuleOptions | undefined);
     /**
+     * Resolve Twilio client: override credentials가 기본값과 다르면 새 클라이언트 생성
+     */
+    private resolveTwilioClient;
+    /**
      * Send message - auto-detects API based on destination format
      * - ConversationSid (CH...) -> Conversations API
      * - Phone number (whatsapp:+...) -> Messaging API
      */
-    sendMessage(to: string, content: MessageContent): Promise<SendMessageResult>;
+    sendMessage(to: string, content: MessageContent, credentials?: AdapterCredentialsOverride): Promise<SendMessageResult>;
     /**
      * Send message via Twilio Messaging API (for Sandbox/direct WhatsApp)
      */
@@ -26,7 +30,7 @@ export declare class WhatsAppAdapter implements ChannelAdapter {
      * Send message via Twilio Conversations API
      */
     private sendMessageViaConversationsApi;
-    sendTemplateMessage(to: string, templateId: string, variables: Record<string, string>): Promise<SendMessageResult>;
+    sendTemplateMessage(to: string, templateId: string, variables: Record<string, string>, credentials?: AdapterCredentialsOverride): Promise<SendMessageResult>;
     parseWebhookPayload(payload: unknown): NormalizedWebhookEvent | null;
     /**
      * Parse Twilio Conversations API webhook payload

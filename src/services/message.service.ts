@@ -1,9 +1,14 @@
-import { Injectable, Logger, NotFoundException, Inject } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, Inject, Optional } from '@nestjs/common';
 import type { CreateMessageDto } from '../dto';
 import type { IMessage, IMessageRepository } from '../interfaces';
-import { MESSAGE_REPOSITORY } from '../interfaces';
+import {
+  MESSAGE_REPOSITORY,
+  OMNICHANNEL_MODULE_OPTIONS,
+  type OmnichannelModuleOptions,
+} from '../interfaces';
 import { WhatsAppAdapter } from '../adapters/whatsapp.adapter';
 import { InstagramAdapter } from '../adapters/instagram.adapter';
+import type { AdapterCredentialsOverride } from '../adapters/channel.adapter.interface';
 import { ConversationService } from './conversation.service';
 import type { MessageDirection, MessageStatus, SendMessageResult } from '../types';
 
@@ -14,10 +19,35 @@ export class MessageService {
   constructor(
     @Inject(MESSAGE_REPOSITORY)
     private readonly messageRepository: IMessageRepository,
+    @Optional()
+    @Inject(OMNICHANNEL_MODULE_OPTIONS)
+    private readonly moduleOptions: OmnichannelModuleOptions | undefined,
     private readonly whatsappAdapter: WhatsAppAdapter,
     private readonly instagramAdapter: InstagramAdapter,
     private readonly conversationService: ConversationService,
   ) {}
+
+  /**
+   * channelConfigId로 동적 credentials 조회
+   */
+  private async resolveCredentials(
+    channelConfigId?: number | null,
+  ): Promise<AdapterCredentialsOverride | undefined> {
+    if (!channelConfigId || !this.moduleOptions?.channelCredentialsResolver) {
+      return undefined;
+    }
+    try {
+      const creds =
+        await this.moduleOptions.channelCredentialsResolver(channelConfigId);
+      return creds;
+    } catch (error) {
+      this.logger.warn(
+        `Failed to resolve credentials for channelConfigId=${channelConfigId}`,
+        error,
+      );
+      return undefined;
+    }
+  }
 
   async findByConversation(
     conversationId: number,
@@ -47,6 +77,11 @@ export class MessageService {
   ): Promise<IMessage> {
     const conversation = await this.conversationService.findOne(conversationId);
 
+    // 멀티테넌트: conversation의 channelConfigId로 credentials 조회
+    const credentials = await this.resolveCredentials(
+      conversation.channelConfigId,
+    );
+
     let result: SendMessageResult;
     const adapter = conversation.channel === 'instagram'
       ? this.instagramAdapter
@@ -57,6 +92,7 @@ export class MessageService {
         conversation.contactIdentifier,
         dto.templateId,
         dto.templateVariables ?? {},
+        credentials,
       );
     } else {
       const messageType =
@@ -72,6 +108,7 @@ export class MessageService {
           text: dto.contentText,
           mediaUrl: dto.contentMediaUrl,
         },
+        credentials,
       );
     }
 

@@ -1,6 +1,6 @@
 import { Injectable, Logger, Inject, Optional } from '@nestjs/common';
 import { Twilio, jwt } from 'twilio';
-import type { ChannelAdapter } from './channel.adapter.interface';
+import type { ChannelAdapter, AdapterCredentialsOverride } from './channel.adapter.interface';
 import type {
   MessageContent,
   SendMessageResult,
@@ -52,6 +52,30 @@ export class WhatsAppAdapter implements ChannelAdapter {
   }
 
   /**
+   * Resolve Twilio client: override credentials가 기본값과 다르면 새 클라이언트 생성
+   */
+  private resolveTwilioClient(credentials?: AdapterCredentialsOverride): {
+    client: Twilio | null;
+    whatsappNumber: string;
+  } {
+    const twilio = credentials?.twilio;
+    if (
+      twilio?.accountSid &&
+      twilio?.authToken &&
+      twilio.accountSid !== this.accountSid
+    ) {
+      return {
+        client: new Twilio(twilio.accountSid, twilio.authToken),
+        whatsappNumber: twilio.whatsappNumber ?? this.whatsappNumber,
+      };
+    }
+    return {
+      client: this.client,
+      whatsappNumber: twilio?.whatsappNumber ?? this.whatsappNumber,
+    };
+  }
+
+  /**
    * Send message - auto-detects API based on destination format
    * - ConversationSid (CH...) -> Conversations API
    * - Phone number (whatsapp:+...) -> Messaging API
@@ -59,14 +83,15 @@ export class WhatsAppAdapter implements ChannelAdapter {
   async sendMessage(
     to: string,
     content: MessageContent,
+    credentials?: AdapterCredentialsOverride,
   ): Promise<SendMessageResult> {
     // Detect if this is a Conversations API conversation ID
     if (to.startsWith('CH')) {
-      return this.sendMessageViaConversationsApi(to, content);
+      return this.sendMessageViaConversationsApi(to, content, credentials);
     }
-    
+
     // Default to Messaging API
-    return this.sendMessageViaMessagingApi(to, content);
+    return this.sendMessageViaMessagingApi(to, content, credentials);
   }
 
   /**
@@ -75,14 +100,16 @@ export class WhatsAppAdapter implements ChannelAdapter {
   private async sendMessageViaMessagingApi(
     to: string,
     content: MessageContent,
+    credentials?: AdapterCredentialsOverride,
   ): Promise<SendMessageResult> {
     try {
-      if (!this.client) {
+      const { client, whatsappNumber } = this.resolveTwilioClient(credentials);
+      if (!client) {
         throw new Error('Twilio client not initialized');
       }
 
       const toWhatsapp = to.startsWith('whatsapp:') ? to : `whatsapp:${to}`;
-      const fromWhatsapp = `whatsapp:${this.whatsappNumber}`;
+      const fromWhatsapp = `whatsapp:${whatsappNumber}`;
 
       const messageOptions: {
         from: string;
@@ -106,7 +133,7 @@ export class WhatsAppAdapter implements ChannelAdapter {
         }
       }
 
-      const message = await this.client.messages.create(messageOptions);
+      const message = await client.messages.create(messageOptions);
 
       this.logger.log(`Message sent via Messaging API: ${message.sid}`);
 
@@ -129,9 +156,11 @@ export class WhatsAppAdapter implements ChannelAdapter {
   private async sendMessageViaConversationsApi(
     conversationSid: string,
     content: MessageContent,
+    credentials?: AdapterCredentialsOverride,
   ): Promise<SendMessageResult> {
     try {
-      if (!this.client) {
+      const { client } = this.resolveTwilioClient(credentials);
+      if (!client) {
         throw new Error('Twilio client not initialized');
       }
 
@@ -145,7 +174,7 @@ export class WhatsAppAdapter implements ChannelAdapter {
       }
       // TODO: Handle media for Conversations API (requires media upload first)
 
-      const message = await this.client.conversations.v1
+      const message = await client.conversations.v1
         .conversations(conversationSid)
         .messages.create(messageOptions);
 
@@ -168,16 +197,18 @@ export class WhatsAppAdapter implements ChannelAdapter {
     to: string,
     templateId: string,
     variables: Record<string, string>,
+    credentials?: AdapterCredentialsOverride,
   ): Promise<SendMessageResult> {
     try {
-      if (!this.client) {
+      const { client, whatsappNumber } = this.resolveTwilioClient(credentials);
+      if (!client) {
         throw new Error('Twilio client not initialized');
       }
 
       const toWhatsapp = to.startsWith('whatsapp:') ? to : `whatsapp:${to}`;
-      const fromWhatsapp = `whatsapp:${this.whatsappNumber}`;
+      const fromWhatsapp = `whatsapp:${whatsappNumber}`;
 
-      const message = await this.client.messages.create({
+      const message = await client.messages.create({
         from: fromWhatsapp,
         to: toWhatsapp,
         contentSid: templateId,

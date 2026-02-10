@@ -1,4 +1,4 @@
-import type { ChannelAdapter } from './channel.adapter.interface';
+import type { ChannelAdapter, AdapterCredentialsOverride } from './channel.adapter.interface';
 import type { MessageContent, SendMessageResult, NormalizedWebhookEvent, NormalizedMessage, ChannelType } from '../types';
 import { type OmnichannelModuleOptions } from '../interfaces';
 export declare class InstagramAdapter implements ChannelAdapter {
@@ -15,15 +15,19 @@ export declare class InstagramAdapter implements ChannelAdapter {
     readonly channel: ChannelType;
     constructor(options?: OmnichannelModuleOptions | undefined);
     /**
+     * Resolve credentials: override가 있으면 override 사용, 없으면 기본값 사용
+     */
+    private resolveCredentials;
+    /**
      * Send a message via Instagram Messaging API (using Facebook Graph API)
      * https://developers.facebook.com/docs/instagram-platform/instagram-api-with-instagram-login/messaging-api
      */
-    sendMessage(to: string, content: MessageContent): Promise<SendMessageResult>;
+    sendMessage(to: string, content: MessageContent, credentials?: AdapterCredentialsOverride): Promise<SendMessageResult>;
     /**
      * Send a template message (Instagram generic template)
      * Note: Instagram has limited template support compared to Messenger
      */
-    sendTemplateMessage(to: string, templateId: string, variables: Record<string, string>): Promise<SendMessageResult>;
+    sendTemplateMessage(to: string, templateId: string, variables: Record<string, string>, credentials?: AdapterCredentialsOverride): Promise<SendMessageResult>;
     /**
      * Parse Instagram webhook payload into normalized event
      */
