@@ -3,6 +3,7 @@ import type { CreateMessageDto } from '../dto';
 import type { IMessage, IMessageRepository } from '../interfaces';
 import { MESSAGE_REPOSITORY } from '../interfaces';
 import { WhatsAppAdapter } from '../adapters/whatsapp.adapter';
+import { InstagramAdapter } from '../adapters/instagram.adapter';
 import { ConversationService } from './conversation.service';
 import type { MessageDirection, MessageStatus, SendMessageResult } from '../types';
 
@@ -14,6 +15,7 @@ export class MessageService {
     @Inject(MESSAGE_REPOSITORY)
     private readonly messageRepository: IMessageRepository,
     private readonly whatsappAdapter: WhatsAppAdapter,
+    private readonly instagramAdapter: InstagramAdapter,
     private readonly conversationService: ConversationService,
   ) {}
 
@@ -46,8 +48,12 @@ export class MessageService {
     const conversation = await this.conversationService.findOne(conversationId);
 
     let result: SendMessageResult;
+    const adapter = conversation.channel === 'instagram'
+      ? this.instagramAdapter
+      : this.whatsappAdapter;
+
     if (dto.contentType === 'template' && dto.templateId) {
-      result = await this.whatsappAdapter.sendTemplateMessage(
+      result = await adapter.sendTemplateMessage(
         conversation.contactIdentifier,
         dto.templateId,
         dto.templateVariables ?? {},
@@ -59,7 +65,7 @@ export class MessageService {
           : dto.contentType === 'image'
             ? 'image'
             : 'file';
-      result = await this.whatsappAdapter.sendMessage(
+      result = await adapter.sendMessage(
         conversation.contactIdentifier,
         {
           type: messageType,

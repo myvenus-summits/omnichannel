@@ -17,15 +17,18 @@ exports.MessageService = void 0;
 const common_1 = require("@nestjs/common");
 const interfaces_1 = require("../interfaces");
 const whatsapp_adapter_1 = require("../adapters/whatsapp.adapter");
+const instagram_adapter_1 = require("../adapters/instagram.adapter");
 const conversation_service_1 = require("./conversation.service");
 let MessageService = MessageService_1 = class MessageService {
     messageRepository;
     whatsappAdapter;
+    instagramAdapter;
     conversationService;
     logger = new common_1.Logger(MessageService_1.name);
-    constructor(messageRepository, whatsappAdapter, conversationService) {
+    constructor(messageRepository, whatsappAdapter, instagramAdapter, conversationService) {
         this.messageRepository = messageRepository;
         this.whatsappAdapter = whatsappAdapter;
+        this.instagramAdapter = instagramAdapter;
         this.conversationService = conversationService;
     }
     async findByConversation(conversationId, options) {
@@ -44,8 +47,11 @@ let MessageService = MessageService_1 = class MessageService {
     async sendMessage(conversationId, dto, senderUserId) {
         const conversation = await this.conversationService.findOne(conversationId);
         let result;
+        const adapter = conversation.channel === 'instagram'
+            ? this.instagramAdapter
+            : this.whatsappAdapter;
         if (dto.contentType === 'template' && dto.templateId) {
-            result = await this.whatsappAdapter.sendTemplateMessage(conversation.contactIdentifier, dto.templateId, dto.templateVariables ?? {});
+            result = await adapter.sendTemplateMessage(conversation.contactIdentifier, dto.templateId, dto.templateVariables ?? {});
         }
         else {
             const messageType = dto.contentType === 'text'
@@ -53,7 +59,7 @@ let MessageService = MessageService_1 = class MessageService {
                 : dto.contentType === 'image'
                     ? 'image'
                     : 'file';
-            result = await this.whatsappAdapter.sendMessage(conversation.contactIdentifier, {
+            result = await adapter.sendMessage(conversation.contactIdentifier, {
                 type: messageType,
                 text: dto.contentText,
                 mediaUrl: dto.contentMediaUrl,
@@ -110,6 +116,7 @@ exports.MessageService = MessageService = MessageService_1 = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, common_1.Inject)(interfaces_1.MESSAGE_REPOSITORY)),
     __metadata("design:paramtypes", [Object, whatsapp_adapter_1.WhatsAppAdapter,
+        instagram_adapter_1.InstagramAdapter,
         conversation_service_1.ConversationService])
 ], MessageService);
 //# sourceMappingURL=message.service.js.map

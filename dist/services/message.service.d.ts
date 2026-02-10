@@ -1,14 +1,16 @@
 import type { CreateMessageDto } from '../dto';
 import type { IMessage, IMessageRepository } from '../interfaces';
 import { WhatsAppAdapter } from '../adapters/whatsapp.adapter';
+import { InstagramAdapter } from '../adapters/instagram.adapter';
 import { ConversationService } from './conversation.service';
 import type { MessageDirection, MessageStatus } from '../types';
 export declare class MessageService {
     private readonly messageRepository;
     private readonly whatsappAdapter;
+    private readonly instagramAdapter;
     private readonly conversationService;
     private readonly logger;
-    constructor(messageRepository: IMessageRepository, whatsappAdapter: WhatsAppAdapter, conversationService: ConversationService);
+    constructor(messageRepository: IMessageRepository, whatsappAdapter: WhatsAppAdapter, instagramAdapter: InstagramAdapter, conversationService: ConversationService);
     findByConversation(conversationId: number, options?: {
         limit?: number;
         before?: string;
