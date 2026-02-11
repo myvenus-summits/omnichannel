@@ -25,6 +25,7 @@ let WebhookService = WebhookService_1 = class WebhookService {
     options;
     conversationRepository;
     messageRepository;
+    contactChannelRepository;
     whatsappAdapter;
     instagramAdapter;
     omnichannelGateway;
@@ -34,10 +35,11 @@ let WebhookService = WebhookService_1 = class WebhookService {
     appUrl;
     metaWebhookVerifyToken;
     webhookChannelResolver;
-    constructor(options, conversationRepository, messageRepository, whatsappAdapter, instagramAdapter, omnichannelGateway, conversationService, messageService) {
+    constructor(options, conversationRepository, messageRepository, contactChannelRepository, whatsappAdapter, instagramAdapter, omnichannelGateway, conversationService, messageService) {
         this.options = options;
         this.conversationRepository = conversationRepository;
         this.messageRepository = messageRepository;
+        this.contactChannelRepository = contactChannelRepository;
         this.whatsappAdapter = whatsappAdapter;
         this.instagramAdapter = instagramAdapter;
         this.omnichannelGateway = omnichannelGateway;
@@ -150,6 +152,32 @@ let WebhookService = WebhookService_1 = class WebhookService {
                     contactName = `@${profile.username}`;
                     this.logger.log(`Resolved Instagram username: ${contactName}`);
                 }
+                // Save profile image URL to contact_channel
+                if (profile && this.contactChannelRepository) {
+                    try {
+                        const existing = await this.contactChannelRepository.findByChannelIdentifier('instagram', event.contactIdentifier);
+                        if (existing) {
+                            await this.contactChannelRepository.update(existing.id, {
+                                channelDisplayName: profile.username ? `@${profile.username}` : existing.channelDisplayName,
+                                channelProfileUrl: profile.profile_picture_url ?? existing.channelProfileUrl,
+                            });
+                        }
+                        else {
+                            await this.contactChannelRepository.create({
+                                channel: 'instagram',
+                                channelIdentifier: event.contactIdentifier,
+                                channelDisplayName: profile.username ? `@${profile.username}` : null,
+                                channelProfileUrl: profile.profile_picture_url ?? null,
+                                contactId: null,
+                                metadata: null,
+                                lastContactedAt: new Date(),
+                            });
+                        }
+                    }
+                    catch (error) {
+                        this.logger.warn(`Failed to save Instagram profile for ${event.contactIdentifier}: ${error}`);
+                    }
+                }
             }
         }
         if (!conversation) {
@@ -188,6 +216,16 @@ let WebhookService = WebhookService_1 = class WebhookService {
         const senderName = event.message.direction === 'inbound' && contactName
             ? contactName
             : event.message.senderName ?? null;
+        // Resolve reply-to context
+        let replyToMessageId = null;
+        let replyToPreview = null;
+        if (event.message.replyToExternalId) {
+            const replyTarget = await this.messageRepository.findByChannelMessageId(event.message.replyToExternalId);
+            if (replyTarget) {
+                replyToMessageId = replyTarget.id;
+                replyToPreview = (replyTarget.contentText ?? '').substring(0, 100) || null;
+            }
+        }
         const message = await this.messageRepository.create({
             conversationId: conversation.id,
             channelMessageId: event.message.channelMessageId,
@@ -197,6 +235,8 @@ let WebhookService = WebhookService_1 = class WebhookService {
             contentType: event.message.contentType,
             contentText: event.message.contentText ?? null,
             contentMediaUrl: event.message.contentMediaUrl ?? null,
+            replyToMessageId,
+            replyToPreview,
             status: event.message.direction === 'inbound' ? 'delivered' : 'sent',
             metadata: event.message.metadata ?? null,
         });
@@ -254,7 +294,9 @@ exports.WebhookService = WebhookService = WebhookService_1 = __decorate([
     __param(0, (0, common_1.Inject)(interfaces_1.OMNICHANNEL_MODULE_OPTIONS)),
     __param(1, (0, common_1.Inject)(interfaces_1.CONVERSATION_REPOSITORY)),
     __param(2, (0, common_1.Inject)(interfaces_1.MESSAGE_REPOSITORY)),
-    __metadata("design:paramtypes", [Object, Object, Object, whatsapp_adapter_1.WhatsAppAdapter,
+    __param(3, (0, common_1.Optional)()),
+    __param(3, (0, common_1.Inject)(interfaces_1.CONTACT_CHANNEL_REPOSITORY)),
+    __metadata("design:paramtypes", [Object, Object, Object, Object, whatsapp_adapter_1.WhatsAppAdapter,
         instagram_adapter_1.InstagramAdapter,
         omnichannel_gateway_1.OmnichannelGateway,
         conversation_service_1.ConversationService,

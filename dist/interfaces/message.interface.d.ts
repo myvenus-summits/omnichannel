@@ -13,6 +13,8 @@ export interface IMessage {
     contentType: MessageContentType;
     contentText: string | null;
     contentMediaUrl: string | null;
+    replyToMessageId: number | null;
+    replyToPreview: string | null;
     status: MessageStatus;
     metadata: Record<string, unknown> | null;
     createdAt: Date;

@@ -373,6 +373,10 @@ export class WhatsAppAdapter implements ChannelAdapter {
       `Parsed Messaging API webhook: ${messageSid} from ${from} (${senderName})`,
     );
 
+    // Extract reply context from Twilio webhook (OriginalRepliedMessageSid)
+    const rawPayloadForReply = twilioPayload as Record<string, string | undefined>;
+    const replyToExternalId = rawPayloadForReply['OriginalRepliedMessageSid'] ?? undefined;
+
     return {
       type: 'message',
       channelConversationId: conversationId,
@@ -386,6 +390,7 @@ export class WhatsAppAdapter implements ChannelAdapter {
         contentType,
         contentText: twilioPayload.Body ?? undefined,
         contentMediaUrl: mediaUrl,
+        replyToExternalId,
         timestamp: new Date(),
         metadata: {
           accountSid: twilioPayload.AccountSid,

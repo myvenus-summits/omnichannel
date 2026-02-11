@@ -121,16 +121,22 @@ export class InstagramAdapter implements ChannelAdapter {
       // Instagram Messaging uses the Instagram Graph API endpoint
       const url = `${this.igBaseUrl}/${this.apiVersion}/${endpointId}/messages`;
 
+      const requestBody: Record<string, unknown> = {
+        recipient: { id: to },
+        message: messagePayload,
+      };
+
+      if (content.replyToExternalId) {
+        requestBody.reply_to = { mid: content.replyToExternalId };
+      }
+
       const response = await fetch(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${resolved.accessToken}`,
         },
-        body: JSON.stringify({
-          recipient: { id: to },
-          message: messagePayload,
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       const result = (await response.json()) as InstagramApiResponse;
@@ -344,6 +350,7 @@ export class InstagramAdapter implements ChannelAdapter {
     id: string;
     username?: string;
     name?: string;
+    profile_picture_url?: string;
   } | null> {
     try {
       const accessToken = credentials?.meta?.accessToken || this.accessToken;
@@ -351,7 +358,7 @@ export class InstagramAdapter implements ChannelAdapter {
         throw new Error('Instagram access token not configured');
       }
 
-      const url = `${this.igBaseUrl}/${this.apiVersion}/${userId}?fields=username,name`;
+      const url = `${this.igBaseUrl}/${this.apiVersion}/${userId}?fields=username,name,profile_picture_url`;
 
       const response = await fetch(url, {
         headers: {
@@ -368,6 +375,7 @@ export class InstagramAdapter implements ChannelAdapter {
         id: string;
         username?: string;
         name?: string;
+        profile_picture_url?: string;
       };
 
       this.logger.log(`Fetched Instagram profile for ${userId}: @${data.username}`);
@@ -446,11 +454,11 @@ export class InstagramAdapter implements ChannelAdapter {
           contentType,
           contentText: event.message.text,
           contentMediaUrl: mediaUrl,
+          replyToExternalId: event.message.reply_to?.mid,
           timestamp: new Date(event.timestamp),
           metadata: {
             isQuickReply: !!event.message.quick_reply,
             quickReplyPayload: event.message.quick_reply?.payload,
-            replyToMid: event.message.reply_to?.mid,
             instagramEntryId: entryId,
           },
         },

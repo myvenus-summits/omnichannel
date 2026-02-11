@@ -74,16 +74,20 @@ let InstagramAdapter = InstagramAdapter_1 = class InstagramAdapter {
             const messagePayload = this.buildMessagePayload(content);
             // Instagram Messaging uses the Instagram Graph API endpoint
             const url = `${this.igBaseUrl}/${this.apiVersion}/${endpointId}/messages`;
+            const requestBody = {
+                recipient: { id: to },
+                message: messagePayload,
+            };
+            if (content.replyToExternalId) {
+                requestBody.reply_to = { mid: content.replyToExternalId };
+            }
             const response = await fetch(url, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     Authorization: `Bearer ${resolved.accessToken}`,
                 },
-                body: JSON.stringify({
-                    recipient: { id: to },
-                    message: messagePayload,
-                }),
+                body: JSON.stringify(requestBody),
             });
             const result = (await response.json());
             if (!response.ok || result.error) {
@@ -266,7 +270,7 @@ let InstagramAdapter = InstagramAdapter_1 = class InstagramAdapter {
             if (!accessToken) {
                 throw new Error('Instagram access token not configured');
             }
-            const url = `${this.igBaseUrl}/${this.apiVersion}/${userId}?fields=username,name`;
+            const url = `${this.igBaseUrl}/${this.apiVersion}/${userId}?fields=username,name,profile_picture_url`;
             const response = await fetch(url, {
                 headers: {
                     Authorization: `Bearer ${accessToken}`,
@@ -342,11 +346,11 @@ let InstagramAdapter = InstagramAdapter_1 = class InstagramAdapter {
                     contentType,
                     contentText: event.message.text,
                     contentMediaUrl: mediaUrl,
+                    replyToExternalId: event.message.reply_to?.mid,
                     timestamp: new Date(event.timestamp),
                     metadata: {
                         isQuickReply: !!event.message.quick_reply,
                         quickReplyPayload: event.message.quick_reply?.payload,
-                        replyToMid: event.message.reply_to?.mid,
                         instagramEntryId: entryId,
                     },
                 },

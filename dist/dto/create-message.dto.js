@@ -16,6 +16,7 @@ class CreateMessageDto {
     contentType;
     contentText;
     contentMediaUrl;
+    replyToMessageId;
     templateId;
     templateVariables;
 }
@@ -49,6 +50,15 @@ __decorate([
     (0, class_validator_1.IsUrl)(),
     __metadata("design:type", String)
 ], CreateMessageDto.prototype, "contentMediaUrl", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({
+        description: '답장 대상 메시지 ID',
+        example: 1,
+    }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsNumber)(),
+    __metadata("design:type", Number)
+], CreateMessageDto.prototype, "replyToMessageId", void 0);
 __decorate([
     (0, swagger_1.ApiPropertyOptional)({
         description: '템플릿 ID (contentType이 template인 경우 필수)',

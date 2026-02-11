@@ -26,6 +26,7 @@ export interface MessageContent {
   type: 'text' | 'image' | 'file';
   text?: string;
   mediaUrl?: string;
+  replyToExternalId?: string;
 }
 
 export interface SendMessageResult {
@@ -41,6 +42,7 @@ export interface NormalizedMessage {
   contentType: MessageContentType;
   contentText?: string;
   contentMediaUrl?: string;
+  replyToExternalId?: string;
   timestamp: Date;
   metadata?: Record<string, unknown>;
 }

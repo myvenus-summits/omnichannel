@@ -82,6 +82,20 @@ export class MessageService {
       conversation.channelConfigId,
     );
 
+    // Resolve reply-to context
+    let replyToMessageId: number | null = null;
+    let replyToPreview: string | null = null;
+    let replyToExternalId: string | undefined;
+
+    if (dto.replyToMessageId) {
+      const replyTarget = await this.messageRepository.findOne(dto.replyToMessageId);
+      if (replyTarget) {
+        replyToMessageId = replyTarget.id;
+        replyToPreview = (replyTarget.contentText ?? '').substring(0, 100) || null;
+        replyToExternalId = replyTarget.channelMessageId;
+      }
+    }
+
     let result: SendMessageResult;
     const adapter = conversation.channel === 'instagram'
       ? this.instagramAdapter
@@ -107,6 +121,7 @@ export class MessageService {
           type: messageType,
           text: dto.contentText,
           mediaUrl: dto.contentMediaUrl,
+          replyToExternalId,
         },
         credentials,
       );
@@ -124,6 +139,8 @@ export class MessageService {
       contentType: dto.contentType,
       contentText: dto.contentText ?? null,
       contentMediaUrl: dto.contentMediaUrl ?? null,
+      replyToMessageId,
+      replyToPreview,
       status: 'sent',
       senderName: null,
       metadata: null,

@@ -3,6 +3,7 @@ export declare class CreateMessageDto {
     contentType: MessageContentType;
     contentText?: string;
     contentMediaUrl?: string;
+    replyToMessageId?: number;
     templateId?: string;
     templateVariables?: Record<string, string>;
 }

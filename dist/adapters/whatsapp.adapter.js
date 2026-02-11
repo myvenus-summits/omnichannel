@@ -290,6 +290,9 @@ let WhatsAppAdapter = WhatsAppAdapter_1 = class WhatsAppAdapter {
         // Extract contact name from ProfileName (WhatsApp) or use identifier
         const senderName = twilioPayload.ProfileName ?? from;
         this.logger.log(`Parsed Messaging API webhook: ${messageSid} from ${from} (${senderName})`);
+        // Extract reply context from Twilio webhook (OriginalRepliedMessageSid)
+        const rawPayloadForReply = twilioPayload;
+        const replyToExternalId = rawPayloadForReply['OriginalRepliedMessageSid'] ?? undefined;
         return {
             type: 'message',
             channelConversationId: conversationId,
@@ -303,6 +306,7 @@ let WhatsAppAdapter = WhatsAppAdapter_1 = class WhatsAppAdapter {
                 contentType,
                 contentText: twilioPayload.Body ?? undefined,
                 contentMediaUrl: mediaUrl,
+                replyToExternalId,
                 timestamp: new Date(),
                 metadata: {
                     accountSid: twilioPayload.AccountSid,

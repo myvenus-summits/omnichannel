@@ -2,6 +2,7 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsEnum,
   IsNotEmpty,
+  IsNumber,
   IsOptional,
   IsString,
   IsUrl,
@@ -37,6 +38,14 @@ export class CreateMessageDto {
   @IsNotEmpty()
   @IsUrl()
   contentMediaUrl?: string;
+
+  @ApiPropertyOptional({
+    description: '답장 대상 메시지 ID',
+    example: 1,
+  })
+  @IsOptional()
+  @IsNumber()
+  replyToMessageId?: number;
 
   @ApiPropertyOptional({
     description: '템플릿 ID (contentType이 template인 경우 필수)',

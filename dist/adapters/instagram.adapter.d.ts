@@ -51,6 +51,7 @@ export declare class InstagramAdapter implements ChannelAdapter {
         id: string;
         username?: string;
         name?: string;
+        profile_picture_url?: string;
     } | null>;
     /**
      * Build message payload based on content type

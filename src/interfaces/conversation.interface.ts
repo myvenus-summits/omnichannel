@@ -41,6 +41,11 @@ export interface IConversation {
    */
   channelConfigId?: number | null;
 
+  /**
+   * 연락처 프로필 이미지 URL (contact_channel에서 JOIN)
+   */
+  contactProfileUrl?: string | null;
+
   createdAt: Date;
   updatedAt: Date;
 }
