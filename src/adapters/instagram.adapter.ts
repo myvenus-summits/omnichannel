@@ -367,7 +367,8 @@ export class InstagramAdapter implements ChannelAdapter {
       });
 
       if (!response.ok) {
-        this.logger.warn(`Failed to fetch Instagram user profile: ${response.status}`);
+        const errorBody = await response.text();
+        this.logger.warn(`Failed to fetch Instagram user profile: ${response.status} - ${errorBody}`);
         return null;
       }
 
