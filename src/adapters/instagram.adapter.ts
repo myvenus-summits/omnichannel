@@ -57,7 +57,6 @@ export class InstagramAdapter implements ChannelAdapter {
   private readonly pageId: string;
   private readonly instagramBusinessAccountId: string;
   private readonly apiVersion = 'v24.0';
-  private readonly graphBaseUrl = 'https://graph.facebook.com';
   private readonly igBaseUrl = 'https://graph.instagram.com';
 
   readonly channel: ChannelType = 'instagram';
@@ -342,6 +341,8 @@ export class InstagramAdapter implements ChannelAdapter {
 
   /**
    * Fetch Instagram user profile (username, name)
+   * 1차: 직접 IGSID 프로필 조회 (graph.instagram.com)
+   * 2차: Conversations API 참가자 정보 조회 (fallback)
    */
   async fetchUserProfile(
     userId: string,
@@ -352,37 +353,154 @@ export class InstagramAdapter implements ChannelAdapter {
     name?: string;
     profile_picture_url?: string;
   } | null> {
-    try {
-      const accessToken = credentials?.meta?.accessToken || this.accessToken;
-      if (!accessToken) {
-        throw new Error('Instagram access token not configured');
-      }
+    const accessToken = credentials?.meta?.accessToken || this.accessToken;
+    const igAccountId =
+      credentials?.meta?.instagramBusinessAccountId || this.instagramBusinessAccountId;
 
-      const url = `${this.igBaseUrl}/${this.apiVersion}/${userId}?fields=username,name,profile_picture_url`;
+    if (!accessToken) {
+      this.logger.warn('Instagram access token not configured');
+      return null;
+    }
+
+    // 1차: 직접 IGSID 프로필 조회
+    const profile = await this.directProfileLookup(userId, accessToken);
+    if (profile) return profile;
+
+    // 2차: Conversations API로 참가자 정보 조회
+    if (igAccountId) {
+      const convProfile = await this.conversationParticipantLookup(
+        igAccountId,
+        userId,
+        accessToken,
+      );
+      if (convProfile) return convProfile;
+    }
+
+    this.logger.warn(`Could not fetch profile for ${userId} via any method`);
+    return null;
+  }
+
+  /**
+   * 직접 IGSID 프로필 조회 (graph.instagram.com)
+   */
+  private async directProfileLookup(
+    userId: string,
+    accessToken: string,
+  ): Promise<{
+    id: string;
+    username?: string;
+    name?: string;
+    profile_picture_url?: string;
+  } | null> {
+    try {
+      const url = `${this.igBaseUrl}/${this.apiVersion}/${userId}?fields=name,username,profile_pic`;
 
       const response = await fetch(url, {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
+        headers: { Authorization: `Bearer ${accessToken}` },
       });
 
       if (!response.ok) {
         const errorBody = await response.text();
-        this.logger.warn(`Failed to fetch Instagram user profile: ${response.status} - ${errorBody}`);
+        this.logger.warn(
+          `Direct profile lookup failed for ${userId} (HTTP ${response.status}), trying conversations API. Body: ${errorBody}`,
+        );
         return null;
       }
 
-      const data = await response.json() as {
+      const data = (await response.json()) as {
         id: string;
         username?: string;
         name?: string;
-        profile_picture_url?: string;
+        profile_pic?: string;
       };
 
-      this.logger.log(`Fetched Instagram profile for ${userId}: @${data.username}`);
-      return data;
+      this.logger.log(
+        `Fetched Instagram profile for ${data.id}: @${data.username ?? data.name ?? userId}`,
+      );
+
+      return {
+        id: data.id,
+        username: data.username,
+        name: data.name,
+        profile_picture_url: data.profile_pic,
+      };
     } catch (error) {
-      this.logger.error(`Failed to fetch Instagram user profile for ${userId}`, error);
+      this.logger.error(`Direct profile lookup error for ${userId}`, error);
+      return null;
+    }
+  }
+
+  /**
+   * Conversations API를 통한 참가자 프로필 조회 (fallback)
+   * 직접 IGSID 조회 실패 시, 메시징 컨텍스트 내 참가자 정보로 프로필을 가져옴
+   */
+  private async conversationParticipantLookup(
+    igAccountId: string,
+    userId: string,
+    accessToken: string,
+  ): Promise<{
+    id: string;
+    username?: string;
+    name?: string;
+    profile_picture_url?: string;
+  } | null> {
+    try {
+      const url =
+        `${this.igBaseUrl}/${this.apiVersion}/${igAccountId}/conversations` +
+        `?user_id=${userId}&fields=participants`;
+
+      const response = await fetch(url, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+
+      if (!response.ok) {
+        const errorBody = await response.text();
+        this.logger.warn(
+          `Conversation participant lookup failed for ${userId} (HTTP ${response.status}): ${errorBody}`,
+        );
+        return null;
+      }
+
+      const result = (await response.json()) as {
+        data: Array<{
+          participants?: {
+            data: Array<{
+              id: string;
+              username?: string;
+              name?: string;
+              profile_pic?: string;
+            }>;
+          };
+        }>;
+      };
+
+      // 대화 참가자 중 해당 userId와 일치하는 참가자 찾기
+      for (const conversation of result.data) {
+        const participant = conversation.participants?.data?.find(
+          (p) => p.id === userId,
+        );
+        if (participant) {
+          this.logger.log(
+            `Fetched Instagram profile via conversations API for ${userId}: @${participant.username ?? participant.name ?? userId}`,
+          );
+          return {
+            id: participant.id,
+            username: participant.username,
+            name: participant.name,
+            profile_picture_url: participant.profile_pic,
+          };
+        }
+      }
+
+      this.logger.warn(
+        `Conversation participant lookup: no matching participant found for ${userId}`,
+      );
+      return null;
+    } catch (error) {
+      this.logger.error(
+        `Conversation participant lookup error for ${userId}`,
+        error,
+      );
       return null;
     }
   }
@@ -480,7 +598,7 @@ export class InstagramAdapter implements ChannelAdapter {
       };
     }
 
-    // Handle read event
+    // Handle read event (watermark-based: all messages up to watermark timestamp are read)
     if (event.read) {
       return {
         type: 'status_update',
@@ -488,32 +606,17 @@ export class InstagramAdapter implements ChannelAdapter {
         contactIdentifier: event.sender.id,
         channelAccountId: entryId,
         status: {
-          messageId: `read_${event.read.watermark}`,
+          messageId: '',
           status: 'read' as MessageStatus,
+          watermark: event.read.watermark,
         },
       };
     }
 
-    // Handle echo message (outbound message sent)
+    // Skip echo messages — outbound messages are tracked when sent via API.
+    // Echo webhooks can create incorrect conversations with business account ID as contact.
     if (event.message?.is_echo) {
-      return {
-        type: 'message',
-        channelConversationId: this.buildConversationId(event.recipient.id),
-        contactIdentifier: event.recipient.id,
-        channelAccountId: entryId,
-        message: {
-          channelMessageId: event.message.mid,
-          direction: 'outbound',
-          senderName: event.sender.id,
-          contentType: this.determineContentType(event.message),
-          contentText: event.message.text,
-          contentMediaUrl: this.extractMediaUrl(event.message),
-          timestamp: new Date(event.timestamp),
-          metadata: {
-            isEcho: true,
-          },
-        },
-      };
+      return null;
     }
 
     return null;

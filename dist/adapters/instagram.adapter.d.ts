@@ -10,7 +10,6 @@ export declare class InstagramAdapter implements ChannelAdapter {
     private readonly pageId;
     private readonly instagramBusinessAccountId;
     private readonly apiVersion;
-    private readonly graphBaseUrl;
     private readonly igBaseUrl;
     readonly channel: ChannelType;
     constructor(options?: OmnichannelModuleOptions | undefined);
@@ -46,6 +45,8 @@ export declare class InstagramAdapter implements ChannelAdapter {
     verifyWebhook(token: string): boolean;
     /**
      * Fetch Instagram user profile (username, name)
+     * 1차: 직접 IGSID 프로필 조회 (graph.instagram.com)
+     * 2차: Conversations API 참가자 정보 조회 (fallback)
      */
     fetchUserProfile(userId: string, credentials?: AdapterCredentialsOverride): Promise<{
         id: string;
@@ -53,6 +54,15 @@ export declare class InstagramAdapter implements ChannelAdapter {
         name?: string;
         profile_picture_url?: string;
     } | null>;
+    /**
+     * 직접 IGSID 프로필 조회 (graph.instagram.com)
+     */
+    private directProfileLookup;
+    /**
+     * Conversations API를 통한 참가자 프로필 조회 (fallback)
+     * 직접 IGSID 조회 실패 시, 메시징 컨텍스트 내 참가자 정보로 프로필을 가져옴
+     */
+    private conversationParticipantLookup;
     /**
      * Build message payload based on content type
      */

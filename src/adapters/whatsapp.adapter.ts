@@ -29,6 +29,7 @@ export class WhatsAppAdapter implements ChannelAdapter {
   private readonly apiKeySid: string;
   private readonly apiKeySecret: string;
   private readonly accountSid: string;
+  private readonly appUrl: string;
 
   readonly channel: ChannelType = 'whatsapp';
 
@@ -43,6 +44,7 @@ export class WhatsAppAdapter implements ChannelAdapter {
     this.whatsappNumber = twilio?.whatsappNumber ?? '';
     this.apiKeySid = twilio?.apiKeySid ?? '';
     this.apiKeySecret = twilio?.apiKeySecret ?? '';
+    this.appUrl = options?.appUrl ?? '';
 
     if (twilio?.accountSid && twilio?.authToken) {
       this.client = new Twilio(twilio.accountSid, twilio.authToken);
@@ -116,10 +118,15 @@ export class WhatsAppAdapter implements ChannelAdapter {
         to: string;
         body?: string;
         mediaUrl?: string[];
+        statusCallback?: string;
       } = {
         from: fromWhatsapp,
         to: toWhatsapp,
       };
+
+      if (this.appUrl) {
+        messageOptions.statusCallback = `${this.appUrl}/webhooks/twilio/status`;
+      }
 
       if (content.type === 'text' && content.text) {
         messageOptions.body = content.text;
@@ -213,6 +220,7 @@ export class WhatsAppAdapter implements ChannelAdapter {
         to: toWhatsapp,
         contentSid: templateId,
         contentVariables: JSON.stringify(variables),
+        ...(this.appUrl && { statusCallback: `${this.appUrl}/webhooks/twilio/status` }),
       });
 
       this.logger.log(`Template message sent: ${message.sid}`);
@@ -327,6 +335,7 @@ export class WhatsAppAdapter implements ChannelAdapter {
 
     // Check if this is a status callback (has SmsStatus but minimal content)
     if (twilioPayload.SmsStatus && !twilioPayload.Body && !twilioPayload.NumMedia) {
+      const rawPayload = twilioPayload as Record<string, string | undefined>;
       return {
         type: 'status_update',
         channelConversationId: from, // Use From as conversation identifier
@@ -334,6 +343,8 @@ export class WhatsAppAdapter implements ChannelAdapter {
         status: {
           messageId: messageSid ?? '',
           status: this.mapMessagingApiStatus(twilioPayload.SmsStatus),
+          errorCode: rawPayload['ErrorCode'] ? parseInt(rawPayload['ErrorCode'], 10) : undefined,
+          errorMessage: rawPayload['ErrorMessage'] ?? undefined,
         },
       };
     }

@@ -109,6 +109,12 @@ let WebhookService = WebhookService_1 = class WebhookService {
     async handleMessageEvent(event, channel) {
         if (!event.message)
             return;
+        // 메시지 중복 체크를 conversation 생성 전에 수행 (불필요한 conversation 생성 방지)
+        const existingMessage = await this.messageRepository.findByChannelMessageId(event.message.channelMessageId);
+        if (existingMessage) {
+            this.logger.log(`Message ${event.message.channelMessageId} already exists, skipping`);
+            return;
+        }
         // Resolve clinic/channel config from webhook identifier (멀티테넌트)
         let clinicId = null;
         let regionId = null;
@@ -166,17 +172,21 @@ let WebhookService = WebhookService_1 = class WebhookService {
             });
             this.logger.log(`Created new conversation: ${conversation.id} (clinic: ${clinicId})`);
         }
-        else if (channel === 'instagram' && contactName && !conversation.contactName) {
+        else if (conversation && !conversation.channelConfigId && channelConfigId) {
+            // Backfill channelConfigId for conversations created before config resolution was available
+            await this.conversationRepository.update(conversation.id, {
+                channelConfigId,
+                clinicId: clinicId ?? conversation.clinicId,
+                regionId: regionId ?? conversation.regionId,
+            });
+            conversation.channelConfigId = channelConfigId;
+            this.logger.log(`Backfilled channelConfigId=${channelConfigId} for conversation ${conversation.id}`);
+        }
+        if (channel === 'instagram' && contactName && !conversation.contactName) {
             // Update existing conversation with resolved username
             await this.conversationRepository.update(conversation.id, { contactName });
             conversation.contactName = contactName;
             this.logger.log(`Updated conversation ${conversation.id} with Instagram username: ${contactName}`);
-        }
-        // Check if message already exists
-        const existingMessage = await this.messageRepository.findByChannelMessageId(event.message.channelMessageId);
-        if (existingMessage) {
-            this.logger.log(`Message ${event.message.channelMessageId} already exists`);
-            return;
         }
         // Create message (use resolved contactName for inbound messages)
         const senderName = event.message.direction === 'inbound' && contactName
@@ -296,14 +306,32 @@ let WebhookService = WebhookService_1 = class WebhookService {
     async handleStatusUpdate(event) {
         if (!event.status)
             return;
-        const { messageId, status } = event.status;
-        // 메시지 상태 업데이트
+        const { messageId, status, watermark } = event.status;
+        // Watermark-based bulk update (Instagram read receipts)
+        if (watermark && this.messageRepository.findOutboundBeforeTimestamp) {
+            const conversation = await this.conversationRepository.findByChannelConversationId(event.channelConversationId);
+            if (!conversation) {
+                this.logger.warn(`Watermark update: conversation not found for ${event.channelConversationId}`);
+                return;
+            }
+            const messages = await this.messageRepository.findOutboundBeforeTimestamp(conversation.id, new Date(watermark));
+            const toUpdate = messages.filter(m => m.status !== status);
+            for (const msg of toUpdate) {
+                await this.messageRepository.updateStatus(msg.channelMessageId, status);
+                if (this.omnichannelGateway) {
+                    this.omnichannelGateway.emitMessageStatusUpdate(conversation.id, msg.channelMessageId, status);
+                }
+            }
+            this.logger.log(`Watermark read update: ${toUpdate.length} messages in conversation ${conversation.id}`);
+            return;
+        }
+        // Standard single-message update (WhatsApp, Instagram delivery)
+        if (!messageId)
+            return;
         await this.messageService.updateStatus(messageId, status);
         this.logger.log(`Message status updated: ${messageId} -> ${status}`);
-        // 메시지 조회해서 conversationId 가져오기
         const message = await this.messageRepository.findByChannelMessageId(messageId);
         if (message && this.omnichannelGateway) {
-            // WebSocket으로 상태 변경 브로드캐스트
             this.omnichannelGateway.emitMessageStatusUpdate(message.conversationId, messageId, status);
             this.logger.log(`🔔 Broadcast message status update: ${messageId} -> ${status}`);
         }

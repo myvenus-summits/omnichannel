@@ -60,6 +60,7 @@ export interface IMessageRepository {
     findByChannelMessageId(channelMessageId: string): Promise<IMessage | null>;
     create(data: Partial<CreateMessageData>): Promise<IMessage>;
     updateStatus(channelMessageId: string, status: string): Promise<void>;
+    findOutboundBeforeTimestamp?(conversationId: number, timestamp: Date): Promise<IMessage[]>;
     deleteByConversation?(conversationId: number): Promise<number>;
 }
 /**

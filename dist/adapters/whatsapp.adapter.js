@@ -28,6 +28,7 @@ let WhatsAppAdapter = WhatsAppAdapter_1 = class WhatsAppAdapter {
     apiKeySid;
     apiKeySecret;
     accountSid;
+    appUrl;
     channel = 'whatsapp';
     constructor(options) {
         this.options = options;
@@ -37,6 +38,7 @@ let WhatsAppAdapter = WhatsAppAdapter_1 = class WhatsAppAdapter {
         this.whatsappNumber = twilio?.whatsappNumber ?? '';
         this.apiKeySid = twilio?.apiKeySid ?? '';
         this.apiKeySecret = twilio?.apiKeySecret ?? '';
+        this.appUrl = options?.appUrl ?? '';
         if (twilio?.accountSid && twilio?.authToken) {
             this.client = new twilio_1.Twilio(twilio.accountSid, twilio.authToken);
         }
@@ -90,6 +92,9 @@ let WhatsAppAdapter = WhatsAppAdapter_1 = class WhatsAppAdapter {
                 from: fromWhatsapp,
                 to: toWhatsapp,
             };
+            if (this.appUrl) {
+                messageOptions.statusCallback = `${this.appUrl}/webhooks/twilio/status`;
+            }
             if (content.type === 'text' && content.text) {
                 messageOptions.body = content.text;
             }
@@ -159,6 +164,7 @@ let WhatsAppAdapter = WhatsAppAdapter_1 = class WhatsAppAdapter {
                 to: toWhatsapp,
                 contentSid: templateId,
                 contentVariables: JSON.stringify(variables),
+                ...(this.appUrl && { statusCallback: `${this.appUrl}/webhooks/twilio/status` }),
             });
             this.logger.log(`Template message sent: ${message.sid}`);
             return {

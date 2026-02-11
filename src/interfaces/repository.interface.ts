@@ -69,6 +69,11 @@ export interface IMessageRepository {
   create(data: Partial<CreateMessageData>): Promise<IMessage>;
   updateStatus(channelMessageId: string, status: string): Promise<void>;
 
+  findOutboundBeforeTimestamp?(
+    conversationId: number,
+    timestamp: Date,
+  ): Promise<IMessage[]>;
+
   // Archive related methods
   deleteByConversation?(conversationId: number): Promise<number>;
 }
