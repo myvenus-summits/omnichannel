@@ -10,6 +10,7 @@ export declare class WhatsAppAdapter implements ChannelAdapter {
     private readonly apiKeySid;
     private readonly apiKeySecret;
     private readonly accountSid;
+    private readonly appUrl;
     readonly channel: ChannelType;
     constructor(options?: OmnichannelModuleOptions | undefined);
     /**
