@@ -93,18 +93,20 @@ export class OmnichannelGateway
   }
 
   /**
-   * 메시지 상태 변경 알림 (sent -> delivered -> read)
+   * 메시지 상태 변경 알림 (sent -> delivered -> read -> failed)
    */
   emitMessageStatusUpdate(
     conversationId: number,
     channelMessageId: string,
     status: string,
+    errorMetadata?: { errorCode?: number; errorMessage?: string },
   ) {
     const eventName = `conversation:${conversationId}:message:status`;
     const payload = {
       conversationId,
       channelMessageId,
       status,
+      ...(errorMetadata && errorMetadata),
     };
     
     this.logger.log(

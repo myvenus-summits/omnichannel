@@ -9,6 +9,7 @@ export declare class ConversationController {
     findOne(id: number): Promise<import("..").IConversation>;
     getMessages(id: number, limit?: string, before?: string): Promise<import("..").IMessage[]>;
     sendMessage(id: number, dto: CreateMessageDto): Promise<import("..").IMessage>;
+    resendMessage(id: number, messageId: number): Promise<import("..").IMessage>;
     assign(id: number, dto: AssignDto): Promise<import("..").IConversation>;
     updateTags(id: number, dto: UpdateTagsDto): Promise<import("..").IConversation>;
     updateStatus(id: number, dto: UpdateStatusDto): Promise<import("..").IConversation>;

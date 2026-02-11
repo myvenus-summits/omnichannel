@@ -365,7 +365,7 @@ export class WebhookService {
   ): Promise<void> {
     if (!event.status) return;
 
-    const { messageId, status, watermark } = event.status;
+    const { messageId, status, watermark, errorCode, errorMessage } = event.status;
 
     // Watermark-based bulk update (Instagram read receipts)
     if (watermark && this.messageRepository.findOutboundBeforeTimestamp) {
@@ -406,10 +406,14 @@ export class WebhookService {
     // Standard single-message update (WhatsApp, Instagram delivery)
     if (!messageId) return;
 
-    await this.messageService.updateStatus(messageId, status);
+    const errorMetadata = (errorCode || errorMessage)
+      ? { errorCode, errorMessage }
+      : undefined;
+
+    await this.messageService.updateStatus(messageId, status, errorMetadata);
 
     this.logger.log(
-      `Message status updated: ${messageId} -> ${status}`,
+      `Message status updated: ${messageId} -> ${status}${errorMetadata ? ` (error: ${errorCode} - ${errorMessage})` : ''}`,
     );
 
     const message = await this.messageRepository.findByChannelMessageId(messageId);
@@ -419,6 +423,7 @@ export class WebhookService {
         message.conversationId,
         messageId,
         status,
+        errorMetadata,
       );
 
       this.logger.log(

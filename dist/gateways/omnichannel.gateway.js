@@ -73,14 +73,15 @@ let OmnichannelGateway = OmnichannelGateway_1 = class OmnichannelGateway {
         });
     }
     /**
-     * 메시지 상태 변경 알림 (sent -> delivered -> read)
+     * 메시지 상태 변경 알림 (sent -> delivered -> read -> failed)
      */
-    emitMessageStatusUpdate(conversationId, channelMessageId, status) {
+    emitMessageStatusUpdate(conversationId, channelMessageId, status, errorMetadata) {
         const eventName = `conversation:${conversationId}:message:status`;
         const payload = {
             conversationId,
             channelMessageId,
             status,
+            ...(errorMetadata && errorMetadata),
         };
         this.logger.log(`📤 Emitting ${eventName}: ${JSON.stringify(payload)}`);
         this.server.emit(eventName, payload);

@@ -260,6 +260,7 @@ let WhatsAppAdapter = WhatsAppAdapter_1 = class WhatsAppAdapter {
         const to = twilioPayload.To ?? '';
         // Check if this is a status callback (has SmsStatus but minimal content)
         if (twilioPayload.SmsStatus && !twilioPayload.Body && !twilioPayload.NumMedia) {
+            const rawPayload = twilioPayload;
             return {
                 type: 'status_update',
                 channelConversationId: from, // Use From as conversation identifier
@@ -267,6 +268,8 @@ let WhatsAppAdapter = WhatsAppAdapter_1 = class WhatsAppAdapter {
                 status: {
                     messageId: messageSid ?? '',
                     status: this.mapMessagingApiStatus(twilioPayload.SmsStatus),
+                    errorCode: rawPayload['ErrorCode'] ? parseInt(rawPayload['ErrorCode'], 10) : undefined,
+                    errorMessage: rawPayload['ErrorMessage'] ?? undefined,
                 },
             };
         }

@@ -34,6 +34,10 @@ export declare class MessageService {
         timestamp: Date;
         metadata?: Record<string, unknown>;
     }): Promise<IMessage>;
-    updateStatus(channelMessageId: string, status: MessageStatus): Promise<void>;
+    updateStatus(channelMessageId: string, status: MessageStatus, errorMetadata?: {
+        errorCode?: number;
+        errorMessage?: string;
+    }): Promise<void>;
+    resendMessage(messageId: number): Promise<IMessage>;
 }
 //# sourceMappingURL=message.service.d.ts.map

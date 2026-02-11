@@ -306,7 +306,7 @@ let WebhookService = WebhookService_1 = class WebhookService {
     async handleStatusUpdate(event) {
         if (!event.status)
             return;
-        const { messageId, status, watermark } = event.status;
+        const { messageId, status, watermark, errorCode, errorMessage } = event.status;
         // Watermark-based bulk update (Instagram read receipts)
         if (watermark && this.messageRepository.findOutboundBeforeTimestamp) {
             const conversation = await this.conversationRepository.findByChannelConversationId(event.channelConversationId);
@@ -328,11 +328,14 @@ let WebhookService = WebhookService_1 = class WebhookService {
         // Standard single-message update (WhatsApp, Instagram delivery)
         if (!messageId)
             return;
-        await this.messageService.updateStatus(messageId, status);
-        this.logger.log(`Message status updated: ${messageId} -> ${status}`);
+        const errorMetadata = (errorCode || errorMessage)
+            ? { errorCode, errorMessage }
+            : undefined;
+        await this.messageService.updateStatus(messageId, status, errorMetadata);
+        this.logger.log(`Message status updated: ${messageId} -> ${status}${errorMetadata ? ` (error: ${errorCode} - ${errorMessage})` : ''}`);
         const message = await this.messageRepository.findByChannelMessageId(messageId);
         if (message && this.omnichannelGateway) {
-            this.omnichannelGateway.emitMessageStatusUpdate(message.conversationId, messageId, status);
+            this.omnichannelGateway.emitMessageStatusUpdate(message.conversationId, messageId, status, errorMetadata);
             this.logger.log(`🔔 Broadcast message status update: ${messageId} -> ${status}`);
         }
     }

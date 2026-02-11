@@ -86,6 +86,21 @@ export class ConversationController {
     return this.messageService.sendMessage(id, dto);
   }
 
+  @Post(':id/messages/:messageId/resend')
+  @ApiOperation({ summary: '실패한 메시지 재전송' })
+  @ApiParam({ name: 'id', description: '대화 ID' })
+  @ApiParam({ name: 'messageId', description: '메시지 ID' })
+  @ApiResponse({ status: 201, description: '메시지 재전송 성공' })
+  @ApiResponse({ status: 400, description: '재전송 불가 (실패 상태가 아님)' })
+  @ApiResponse({ status: 404, description: '메시지를 찾을 수 없음' })
+  async resendMessage(
+    @Param('id', ParseIntPipe) id: number,
+    @Param('messageId', ParseIntPipe) messageId: number,
+  ) {
+    await this.conversationService.findOne(id);
+    return this.messageService.resendMessage(messageId);
+  }
+
   @Patch(':id/assign')
   @ApiOperation({ summary: '담당자 배정' })
   @ApiParam({ name: 'id', description: '대화 ID' })

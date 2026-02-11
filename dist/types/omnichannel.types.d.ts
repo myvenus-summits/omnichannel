@@ -39,6 +39,8 @@ export interface NormalizedWebhookEvent {
         messageId: string;
         status: MessageStatus;
         watermark?: number;
+        errorCode?: number;
+        errorMessage?: string;
     };
 }
 //# sourceMappingURL=omnichannel.types.d.ts.map

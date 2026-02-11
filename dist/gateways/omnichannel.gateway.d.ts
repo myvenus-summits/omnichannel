@@ -19,8 +19,11 @@ export declare class OmnichannelGateway implements OnGatewayConnection, OnGatewa
      */
     emitConversationStatusChange(conversationId: number, status: string): void;
     /**
-     * 메시지 상태 변경 알림 (sent -> delivered -> read)
+     * 메시지 상태 변경 알림 (sent -> delivered -> read -> failed)
      */
-    emitMessageStatusUpdate(conversationId: number, channelMessageId: string, status: string): void;
+    emitMessageStatusUpdate(conversationId: number, channelMessageId: string, status: string, errorMetadata?: {
+        errorCode?: number;
+        errorMessage?: string;
+    }): void;
 }
 //# sourceMappingURL=omnichannel.gateway.d.ts.map

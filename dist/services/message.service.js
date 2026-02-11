@@ -142,8 +142,42 @@ let MessageService = MessageService_1 = class MessageService {
         await this.conversationService.updateLastMessage(conversationId, data.contentText?.substring(0, 100) ?? '[Media]', data.timestamp);
         return message;
     }
-    async updateStatus(channelMessageId, status) {
-        await this.messageRepository.updateStatus(channelMessageId, status);
+    async updateStatus(channelMessageId, status, errorMetadata) {
+        await this.messageRepository.updateStatus(channelMessageId, status, errorMetadata);
+    }
+    async resendMessage(messageId) {
+        const original = await this.findOne(messageId);
+        if (original.status !== 'failed') {
+            throw new common_1.BadRequestException('Only failed messages can be resent');
+        }
+        if (original.direction !== 'outbound') {
+            throw new common_1.BadRequestException('Only outbound messages can be resent');
+        }
+        const conversation = await this.conversationService.findOne(original.conversationId);
+        const credentials = await this.resolveCredentials(conversation.channelConfigId);
+        const adapter = conversation.channel === 'instagram'
+            ? this.instagramAdapter
+            : this.whatsappAdapter;
+        const messageType = original.contentType === 'text'
+            ? 'text'
+            : original.contentType === 'image'
+                ? 'image'
+                : 'file';
+        const result = await adapter.sendMessage(conversation.contactIdentifier, {
+            type: messageType,
+            text: original.contentText ?? undefined,
+            mediaUrl: original.contentMediaUrl ?? undefined,
+        }, credentials);
+        if (!result.success) {
+            throw new Error(`Failed to resend message: ${result.error}`);
+        }
+        // Clear error metadata and mark as sent
+        await this.messageRepository.updateStatus(original.channelMessageId, 'sent', {
+            errorCode: undefined,
+            errorMessage: undefined,
+        });
+        this.logger.log(`Message ${messageId} resent successfully (new SID: ${result.channelMessageId})`);
+        return this.findOne(messageId);
     }
 };
 exports.MessageService = MessageService;

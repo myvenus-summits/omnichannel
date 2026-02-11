@@ -1,4 +1,4 @@
-import { Injectable, Logger, NotFoundException, Inject, Optional } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, BadRequestException, Inject, Optional } from '@nestjs/common';
 import type { CreateMessageDto } from '../dto';
 import type { IMessage, IMessageRepository } from '../interfaces';
 import {
@@ -206,7 +206,57 @@ export class MessageService {
   async updateStatus(
     channelMessageId: string,
     status: MessageStatus,
+    errorMetadata?: { errorCode?: number; errorMessage?: string },
   ): Promise<void> {
-    await this.messageRepository.updateStatus(channelMessageId, status);
+    await this.messageRepository.updateStatus(channelMessageId, status, errorMetadata);
+  }
+
+  async resendMessage(messageId: number): Promise<IMessage> {
+    const original = await this.findOne(messageId);
+
+    if (original.status !== 'failed') {
+      throw new BadRequestException('Only failed messages can be resent');
+    }
+    if (original.direction !== 'outbound') {
+      throw new BadRequestException('Only outbound messages can be resent');
+    }
+
+    const conversation = await this.conversationService.findOne(original.conversationId);
+    const credentials = await this.resolveCredentials(conversation.channelConfigId);
+
+    const adapter = conversation.channel === 'instagram'
+      ? this.instagramAdapter
+      : this.whatsappAdapter;
+
+    const messageType =
+      original.contentType === 'text'
+        ? 'text'
+        : original.contentType === 'image'
+          ? 'image'
+          : 'file';
+
+    const result = await adapter.sendMessage(
+      conversation.contactIdentifier,
+      {
+        type: messageType as 'text' | 'image' | 'file',
+        text: original.contentText ?? undefined,
+        mediaUrl: original.contentMediaUrl ?? undefined,
+      },
+      credentials,
+    );
+
+    if (!result.success) {
+      throw new Error(`Failed to resend message: ${result.error}`);
+    }
+
+    // Clear error metadata and mark as sent
+    await this.messageRepository.updateStatus(original.channelMessageId, 'sent', {
+      errorCode: undefined,
+      errorMessage: undefined,
+    });
+
+    this.logger.log(`Message ${messageId} resent successfully (new SID: ${result.channelMessageId})`);
+
+    return this.findOne(messageId);
   }
 }
