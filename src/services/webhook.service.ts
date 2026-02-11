@@ -162,6 +162,11 @@ export class WebhookService {
     // Use existing contactName; for Instagram, resolve username asynchronously after message is saved
     let contactName = event.contactName ?? null;
 
+    // If no contactName from event, use previously resolved name from existing conversation
+    if (!contactName && conversation?.contactName) {
+      contactName = conversation.contactName;
+    }
+
     if (!conversation) {
       conversation = await this.conversationRepository.create({
         channel,
@@ -285,12 +290,21 @@ export class WebhookService {
           credentials,
         );
 
-        if (!profile?.username) {
+        if (!profile) {
           this.logger.warn(`[Background] Could not resolve Instagram username for ${contactIdentifier}`);
           return;
         }
 
-        const resolvedName = `@${profile.username}`;
+        const displayName = profile.username
+          ? `@${profile.username}`
+          : profile.name || null;
+
+        if (!displayName) {
+          this.logger.warn(`[Background] Could not resolve Instagram display name for ${contactIdentifier}`);
+          return;
+        }
+
+        const resolvedName = displayName;
         this.logger.log(`[Background] Resolved Instagram username: ${resolvedName}`);
 
         // Update conversation with resolved name

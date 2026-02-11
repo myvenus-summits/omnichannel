@@ -277,7 +277,8 @@ let InstagramAdapter = InstagramAdapter_1 = class InstagramAdapter {
                 },
             });
             if (!response.ok) {
-                this.logger.warn(`Failed to fetch Instagram user profile: ${response.status}`);
+                const errorBody = await response.text();
+                this.logger.warn(`Failed to fetch Instagram user profile: ${response.status} - ${errorBody}`);
                 return null;
             }
             const data = await response.json();
