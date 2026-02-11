@@ -494,26 +494,10 @@ export class InstagramAdapter implements ChannelAdapter {
       };
     }
 
-    // Handle echo message (outbound message sent)
+    // Skip echo messages — outbound messages are tracked when sent via API.
+    // Echo webhooks can create incorrect conversations with business account ID as contact.
     if (event.message?.is_echo) {
-      return {
-        type: 'message',
-        channelConversationId: this.buildConversationId(event.recipient.id),
-        contactIdentifier: event.recipient.id,
-        channelAccountId: entryId,
-        message: {
-          channelMessageId: event.message.mid,
-          direction: 'outbound',
-          senderName: event.sender.id,
-          contentType: this.determineContentType(event.message),
-          contentText: event.message.text,
-          contentMediaUrl: this.extractMediaUrl(event.message),
-          timestamp: new Date(event.timestamp),
-          metadata: {
-            isEcho: true,
-          },
-        },
-      };
+      return null;
     }
 
     return null;
