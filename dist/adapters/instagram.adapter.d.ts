@@ -47,7 +47,7 @@ export declare class InstagramAdapter implements ChannelAdapter {
     /**
      * Fetch Instagram user profile (username, name)
      */
-    fetchUserProfile(userId: string): Promise<{
+    fetchUserProfile(userId: string, credentials?: AdapterCredentialsOverride): Promise<{
         id: string;
         username?: string;
         name?: string;

@@ -128,6 +128,16 @@ let WebhookService = WebhookService_1 = class WebhookService {
         // Find or create conversation
         let conversation = await this.conversationRepository.findByChannelConversationId(event.channelConversationId);
         const isNewConversation = !conversation;
+        // Resolve per-clinic credentials for API calls (e.g., fetchUserProfile)
+        let resolvedCredentials;
+        if (this.options?.channelCredentialsResolver && channelConfigId) {
+            try {
+                resolvedCredentials = await this.options.channelCredentialsResolver(channelConfigId);
+            }
+            catch (error) {
+                this.logger.warn(`Failed to resolve credentials for channelConfigId ${channelConfigId}: ${error}`);
+            }
+        }
         // Fetch Instagram username if not available
         let contactName = event.contactName ?? null;
         if (channel === 'instagram' && event.contactIdentifier) {
@@ -135,7 +145,7 @@ let WebhookService = WebhookService_1 = class WebhookService {
             const needsUsernameResolution = !contactName || /^\d+$/.test(contactName);
             if (needsUsernameResolution) {
                 this.logger.log(`Fetching Instagram username for: ${event.contactIdentifier}`);
-                const profile = await this.instagramAdapter.fetchUserProfile(event.contactIdentifier);
+                const profile = await this.instagramAdapter.fetchUserProfile(event.contactIdentifier, resolvedCredentials);
                 if (profile?.username) {
                     contactName = `@${profile.username}`;
                     this.logger.log(`Resolved Instagram username: ${contactName}`);

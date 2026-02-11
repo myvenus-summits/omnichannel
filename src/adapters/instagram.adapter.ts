@@ -337,13 +337,17 @@ export class InstagramAdapter implements ChannelAdapter {
   /**
    * Fetch Instagram user profile (username, name)
    */
-  async fetchUserProfile(userId: string): Promise<{
+  async fetchUserProfile(
+    userId: string,
+    credentials?: AdapterCredentialsOverride,
+  ): Promise<{
     id: string;
     username?: string;
     name?: string;
   } | null> {
     try {
-      if (!this.accessToken) {
+      const accessToken = credentials?.meta?.accessToken || this.accessToken;
+      if (!accessToken) {
         throw new Error('Instagram access token not configured');
       }
 
@@ -351,7 +355,7 @@ export class InstagramAdapter implements ChannelAdapter {
 
       const response = await fetch(url, {
         headers: {
-          Authorization: `Bearer ${this.accessToken}`,
+          Authorization: `Bearer ${accessToken}`,
         },
       });
 

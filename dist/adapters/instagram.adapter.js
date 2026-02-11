@@ -260,15 +260,16 @@ let InstagramAdapter = InstagramAdapter_1 = class InstagramAdapter {
     /**
      * Fetch Instagram user profile (username, name)
      */
-    async fetchUserProfile(userId) {
+    async fetchUserProfile(userId, credentials) {
         try {
-            if (!this.accessToken) {
+            const accessToken = credentials?.meta?.accessToken || this.accessToken;
+            if (!accessToken) {
                 throw new Error('Instagram access token not configured');
             }
             const url = `${this.graphBaseUrl}/${this.apiVersion}/${userId}?fields=username,name`;
             const response = await fetch(url, {
                 headers: {
-                    Authorization: `Bearer ${this.accessToken}`,
+                    Authorization: `Bearer ${accessToken}`,
                 },
             });
             if (!response.ok) {
