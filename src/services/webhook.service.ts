@@ -186,6 +186,7 @@ export class WebhookService {
         unreadCount: 0,
         lastMessageAt: null,
         lastMessagePreview: null,
+        lastInboundAt: event.message.direction === 'inbound' ? event.message.timestamp : null,
         metadata: null,
         clinicId,
         regionId,
@@ -233,11 +234,15 @@ export class WebhookService {
         ? (conversation.unreadCount ?? 0) + 1
         : conversation.unreadCount ?? 0;
 
-    const updatedConversation = await this.conversationRepository.update(conversation.id, {
+    const updateData: Record<string, unknown> = {
       lastMessageAt: event.message.timestamp,
       lastMessagePreview: event.message.contentText?.substring(0, 100) ?? '[미디어]',
       unreadCount: newUnreadCount,
-    });
+    };
+    if (event.message.direction === 'inbound') {
+      updateData.lastInboundAt = event.message.timestamp;
+    }
+    const updatedConversation = await this.conversationRepository.update(conversation.id, updateData);
 
     this.logger.log(
       `Message saved: ${event.message.channelMessageId} in conversation ${conversation.id}`,

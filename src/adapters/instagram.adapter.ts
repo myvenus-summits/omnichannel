@@ -56,7 +56,7 @@ export class InstagramAdapter implements ChannelAdapter {
   private readonly webhookVerifyToken: string;
   private readonly pageId: string;
   private readonly instagramBusinessAccountId: string;
-  private readonly apiVersion = 'v21.0';
+  private readonly apiVersion = 'v24.0';
   private readonly graphBaseUrl = 'https://graph.facebook.com';
   private readonly igBaseUrl = 'https://graph.instagram.com';
 
@@ -112,14 +112,14 @@ export class InstagramAdapter implements ChannelAdapter {
       if (!resolved.accessToken) {
         throw new Error('Instagram access token not configured');
       }
-      const endpointId = resolved.pageId || resolved.instagramBusinessAccountId;
+      const endpointId = resolved.instagramBusinessAccountId || resolved.pageId;
       if (!endpointId) {
         throw new Error('Instagram page ID or account ID not configured');
       }
 
       const messagePayload = this.buildMessagePayload(content);
-      // Instagram Messaging uses the Facebook Graph API endpoint
-      const url = `${this.graphBaseUrl}/${this.apiVersion}/${endpointId}/messages`;
+      // Instagram Messaging uses the Instagram Graph API endpoint
+      const url = `${this.igBaseUrl}/${this.apiVersion}/${endpointId}/messages`;
 
       const response = await fetch(url, {
         method: 'POST',
@@ -173,13 +173,13 @@ export class InstagramAdapter implements ChannelAdapter {
       if (!resolved.accessToken) {
         throw new Error('Instagram access token not configured');
       }
-      const endpointId = resolved.pageId || resolved.instagramBusinessAccountId;
+      const endpointId = resolved.instagramBusinessAccountId || resolved.pageId;
       if (!endpointId) {
         throw new Error('Instagram page ID or account ID not configured');
       }
 
       // Instagram uses generic templates for structured messages
-      const url = `${this.graphBaseUrl}/${this.apiVersion}/${endpointId}/messages`;
+      const url = `${this.igBaseUrl}/${this.apiVersion}/${endpointId}/messages`;
 
       const response = await fetch(url, {
         method: 'POST',
@@ -280,7 +280,7 @@ export class InstagramAdapter implements ChannelAdapter {
       }
 
       const limit = options?.limit ?? 50;
-      let url = `${this.graphBaseUrl}/${this.apiVersion}/${conversationId}?fields=messages{id,message,from,to,created_time}&limit=${limit}`;
+      let url = `${this.igBaseUrl}/${this.apiVersion}/${conversationId}?fields=messages{id,message,from,to,created_time}&limit=${limit}`;
 
       if (options?.before) {
         url += `&before=${options.before}`;
@@ -351,7 +351,7 @@ export class InstagramAdapter implements ChannelAdapter {
         throw new Error('Instagram access token not configured');
       }
 
-      const url = `${this.graphBaseUrl}/${this.apiVersion}/${userId}?fields=username,name`;
+      const url = `${this.igBaseUrl}/${this.apiVersion}/${userId}?fields=username,name`;
 
       const response = await fetch(url, {
         headers: {
@@ -432,13 +432,12 @@ export class InstagramAdapter implements ChannelAdapter {
       const contentType = this.determineContentType(event.message);
       const mediaUrl = this.extractMediaUrl(event.message);
 
+      const contactIdentifier = direction === 'inbound' ? event.sender.id : event.recipient.id;
+
       return {
         type: 'message',
-        channelConversationId: this.buildConversationId(
-          event.sender.id,
-          event.recipient.id,
-        ),
-        contactIdentifier: direction === 'inbound' ? event.sender.id : event.recipient.id,
+        channelConversationId: this.buildConversationId(contactIdentifier),
+        contactIdentifier,
         channelAccountId: entryId,
         message: {
           channelMessageId: event.message.mid,
@@ -462,10 +461,7 @@ export class InstagramAdapter implements ChannelAdapter {
     if (event.delivery) {
       return {
         type: 'status_update',
-        channelConversationId: this.buildConversationId(
-          event.sender.id,
-          event.recipient.id,
-        ),
+        channelConversationId: this.buildConversationId(event.sender.id),
         contactIdentifier: event.sender.id,
         channelAccountId: entryId,
         status: {
@@ -479,10 +475,7 @@ export class InstagramAdapter implements ChannelAdapter {
     if (event.read) {
       return {
         type: 'status_update',
-        channelConversationId: this.buildConversationId(
-          event.sender.id,
-          event.recipient.id,
-        ),
+        channelConversationId: this.buildConversationId(event.sender.id),
         contactIdentifier: event.sender.id,
         channelAccountId: entryId,
         status: {
@@ -496,10 +489,7 @@ export class InstagramAdapter implements ChannelAdapter {
     if (event.message?.is_echo) {
       return {
         type: 'message',
-        channelConversationId: this.buildConversationId(
-          event.sender.id,
-          event.recipient.id,
-        ),
+        channelConversationId: this.buildConversationId(event.recipient.id),
         contactIdentifier: event.recipient.id,
         channelAccountId: entryId,
         message: {
@@ -554,12 +544,10 @@ export class InstagramAdapter implements ChannelAdapter {
   }
 
   /**
-   * Build consistent conversation ID from participant IDs
+   * Build conversation ID from contact (customer) identifier
    */
-  private buildConversationId(senderId: string, recipientId: string): string {
-    // Sort IDs to ensure consistent conversation ID regardless of direction
-    const ids = [senderId, recipientId].sort();
-    return `instagram_${ids[0]}_${ids[1]}`;
+  private buildConversationId(contactIdentifier: string): string {
+    return `instagram:${contactIdentifier}`;
   }
 
   /**
@@ -575,14 +563,4 @@ export class InstagramAdapter implements ChannelAdapter {
     return senderId === this.instagramBusinessAccountId ? 'outbound' : 'inbound';
   }
 
-  /**
-   * Legacy method for backward compatibility
-   * @deprecated Use determineDirectionById instead
-   */
-  private determineDirection(
-    senderId: string,
-    _conversationId: string,
-  ): MessageDirection {
-    return this.determineDirectionById(senderId);
-  }
 }

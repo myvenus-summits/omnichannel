@@ -18,6 +18,8 @@ describe('InstagramAdapter', () => {
       accessToken: 'EAAG_test_access_token',
       appSecret: 'app_secret_123',
       webhookVerifyToken: 'my_verify_token',
+      pageId: 'PAGE123',
+      instagramBusinessAccountId: 'IG_BIZ_123',
     },
   };
 
@@ -55,7 +57,7 @@ describe('InstagramAdapter', () => {
       expect(result.success).toBe(true);
       expect(result.channelMessageId).toBe('m_ABC123');
       expect(mockFetch).toHaveBeenCalledWith(
-        'https://graph.instagram.com/v21.0/me/messages',
+        'https://graph.instagram.com/v24.0/IG_BIZ_123/messages',
         expect.objectContaining({
           method: 'POST',
           headers: {
@@ -215,6 +217,7 @@ describe('InstagramAdapter', () => {
 
       expect(result).not.toBeNull();
       expect(result?.type).toBe('message');
+      expect(result?.channelConversationId).toBe('instagram:USER456');
       expect(result?.message?.channelMessageId).toBe('m_ABC123');
       expect(result?.message?.contentText).toBe('Hello from user');
       expect(result?.message?.direction).toBe('inbound');
@@ -280,6 +283,7 @@ describe('InstagramAdapter', () => {
       const result = adapter.parseWebhookPayload(payload);
 
       expect(result?.type).toBe('status_update');
+      expect(result?.channelConversationId).toBe('instagram:USER456');
       expect(result?.status?.status).toBe('delivered');
       expect(result?.status?.messageId).toBe('m_ABC123');
     });
@@ -308,6 +312,7 @@ describe('InstagramAdapter', () => {
       const result = adapter.parseWebhookPayload(payload);
 
       expect(result?.type).toBe('status_update');
+      expect(result?.channelConversationId).toBe('instagram:USER456');
       expect(result?.status?.status).toBe('read');
     });
 
@@ -336,6 +341,7 @@ describe('InstagramAdapter', () => {
 
       const result = adapter.parseWebhookPayload(payload);
 
+      expect(result?.channelConversationId).toBe('instagram:USER456');
       expect(result?.message?.direction).toBe('outbound');
       expect(result?.message?.metadata?.isEcho).toBe(true);
     });

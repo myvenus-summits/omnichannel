@@ -16,6 +16,7 @@ export interface IConversation {
     unreadCount: number;
     lastMessageAt: Date | null;
     lastMessagePreview: string | null;
+    lastInboundAt?: Date | null;
     closedAt?: Date | null;
     archivedAt?: Date | null;
     archiveUrl?: string | null;

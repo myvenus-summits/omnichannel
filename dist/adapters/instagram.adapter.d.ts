@@ -71,7 +71,7 @@ export declare class InstagramAdapter implements ChannelAdapter {
      */
     private extractMediaUrl;
     /**
-     * Build consistent conversation ID from participant IDs
+     * Build conversation ID from contact (customer) identifier
      */
     private buildConversationId;
     /**
@@ -79,10 +79,5 @@ export declare class InstagramAdapter implements ChannelAdapter {
      * Compares against configured Instagram Business Account ID
      */
     private determineDirectionById;
-    /**
-     * Legacy method for backward compatibility
-     * @deprecated Use determineDirectionById instead
-     */
-    private determineDirection;
 }
 //# sourceMappingURL=instagram.adapter.d.ts.map
