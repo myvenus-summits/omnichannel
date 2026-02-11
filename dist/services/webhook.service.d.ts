@@ -27,6 +27,10 @@ export declare class WebhookService {
     verifyMetaWebhook(verifyToken: string, challenge: string): string | null;
     private processEvent;
     private handleMessageEvent;
+    /**
+     * Instagram 사용자 이름 비동기 해결 (fire-and-forget)
+     */
+    private resolveInstagramUsername;
     private handleStatusUpdate;
     private handleConversationCreated;
 }

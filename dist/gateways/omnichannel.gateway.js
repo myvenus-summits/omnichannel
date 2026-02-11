@@ -43,6 +43,8 @@ let OmnichannelGateway = OmnichannelGateway_1 = class OmnichannelGateway {
         };
         this.logger.log(`📤 Emitting ${eventName}: ${JSON.stringify(payload)}`);
         this.server.emit(eventName, payload);
+        // 전역 new_message 이벤트 (CRM에서 대화 ID 모를 때 사용)
+        this.server.emit('new_message', payload);
     }
     /**
      * 대화 목록 업데이트 (새 대화 생성 또는 메타데이터 변경)

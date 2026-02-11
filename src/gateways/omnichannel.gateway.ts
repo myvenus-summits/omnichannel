@@ -55,6 +55,9 @@ export class OmnichannelGateway
     );
     
     this.server.emit(eventName, payload);
+
+    // 전역 new_message 이벤트 (CRM에서 대화 ID 모를 때 사용)
+    this.server.emit('new_message', payload);
   }
 
   /**

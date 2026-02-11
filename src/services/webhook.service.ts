@@ -159,52 +159,8 @@ export class WebhookService {
       }
     }
 
-    // Fetch Instagram username if not available
+    // Use existing contactName; for Instagram, resolve username asynchronously after message is saved
     let contactName = event.contactName ?? null;
-    if (channel === 'instagram' && event.contactIdentifier) {
-      // Check if contactName is missing or looks like a numeric ID
-      const needsUsernameResolution = !contactName || /^\d+$/.test(contactName);
-
-      if (needsUsernameResolution) {
-        this.logger.log(`Fetching Instagram username for: ${event.contactIdentifier}`);
-        const profile = await this.instagramAdapter.fetchUserProfile(
-          event.contactIdentifier,
-          resolvedCredentials,
-        );
-        if (profile?.username) {
-          contactName = `@${profile.username}`;
-          this.logger.log(`Resolved Instagram username: ${contactName}`);
-        }
-
-        // Save profile image URL to contact_channel
-        if (profile && this.contactChannelRepository) {
-          try {
-            const existing = await this.contactChannelRepository.findByChannelIdentifier(
-              'instagram',
-              event.contactIdentifier,
-            );
-            if (existing) {
-              await this.contactChannelRepository.update(existing.id, {
-                channelDisplayName: profile.username ? `@${profile.username}` : existing.channelDisplayName,
-                channelProfileUrl: profile.profile_picture_url ?? existing.channelProfileUrl,
-              });
-            } else {
-              await this.contactChannelRepository.create({
-                channel: 'instagram',
-                channelIdentifier: event.contactIdentifier,
-                channelDisplayName: profile.username ? `@${profile.username}` : null,
-                channelProfileUrl: profile.profile_picture_url ?? null,
-                contactId: null,
-                metadata: null,
-                lastContactedAt: new Date(),
-              });
-            }
-          } catch (error) {
-            this.logger.warn(`Failed to save Instagram profile for ${event.contactIdentifier}: ${error}`);
-          }
-        }
-      }
-    }
 
     if (!conversation) {
       conversation = await this.conversationRepository.create({
@@ -299,6 +255,85 @@ export class WebhookService {
     this.logger.log(`🔔 Emitting WebSocket events for conversation ${updatedConversation.id}`);
     this.omnichannelGateway?.emitNewMessage(updatedConversation.id, message);
     this.omnichannelGateway?.emitConversationUpdate(updatedConversation);
+
+    // Instagram: resolve username asynchronously (non-blocking)
+    if (channel === 'instagram' && event.contactIdentifier) {
+      const needsUsernameResolution = !updatedConversation.contactName || /^\d+$/.test(updatedConversation.contactName);
+      if (needsUsernameResolution) {
+        this.resolveInstagramUsername(
+          updatedConversation.id,
+          event.contactIdentifier,
+          resolvedCredentials,
+        );
+      }
+    }
+  }
+
+  /**
+   * Instagram 사용자 이름 비동기 해결 (fire-and-forget)
+   */
+  private resolveInstagramUsername(
+    conversationId: number,
+    contactIdentifier: string,
+    credentials?: import('../adapters/channel.adapter.interface').AdapterCredentialsOverride,
+  ): void {
+    (async () => {
+      try {
+        this.logger.log(`[Background] Resolving Instagram username for: ${contactIdentifier}`);
+        const profile = await this.instagramAdapter.fetchUserProfile(
+          contactIdentifier,
+          credentials,
+        );
+
+        if (!profile?.username) {
+          this.logger.warn(`[Background] Could not resolve Instagram username for ${contactIdentifier}`);
+          return;
+        }
+
+        const resolvedName = `@${profile.username}`;
+        this.logger.log(`[Background] Resolved Instagram username: ${resolvedName}`);
+
+        // Update conversation with resolved name
+        const updatedConversation = await this.conversationRepository.update(conversationId, {
+          contactName: resolvedName,
+        });
+
+        // Emit a second conversation:update with the resolved name
+        if (this.omnichannelGateway) {
+          this.omnichannelGateway.emitConversationUpdate(updatedConversation);
+        }
+
+        // Save profile to contact_channel
+        if (this.contactChannelRepository) {
+          try {
+            const existing = await this.contactChannelRepository.findByChannelIdentifier(
+              'instagram',
+              contactIdentifier,
+            );
+            if (existing) {
+              await this.contactChannelRepository.update(existing.id, {
+                channelDisplayName: resolvedName,
+                channelProfileUrl: profile.profile_picture_url ?? existing.channelProfileUrl,
+              });
+            } else {
+              await this.contactChannelRepository.create({
+                channel: 'instagram',
+                channelIdentifier: contactIdentifier,
+                channelDisplayName: resolvedName,
+                channelProfileUrl: profile.profile_picture_url ?? null,
+                contactId: null,
+                metadata: null,
+                lastContactedAt: new Date(),
+              });
+            }
+          } catch (error) {
+            this.logger.warn(`[Background] Failed to save Instagram profile for ${contactIdentifier}: ${error}`);
+          }
+        }
+      } catch (error) {
+        this.logger.warn(`[Background] Failed to resolve Instagram username for ${contactIdentifier}: ${error}`);
+      }
+    })();
   }
 
   private async handleStatusUpdate(
