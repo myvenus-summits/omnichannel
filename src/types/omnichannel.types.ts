@@ -57,5 +57,6 @@ export interface NormalizedWebhookEvent {
   status?: {
     messageId: string;
     status: MessageStatus;
+    watermark?: number;
   };
 }

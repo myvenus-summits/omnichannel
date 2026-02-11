@@ -46,6 +46,8 @@ export declare class InstagramAdapter implements ChannelAdapter {
     verifyWebhook(token: string): boolean;
     /**
      * Fetch Instagram user profile (username, name)
+     * Tries Instagram Graph API first, then falls back to Facebook Graph API
+     * (handles both IG Login tokens and Facebook Page tokens)
      */
     fetchUserProfile(userId: string, credentials?: AdapterCredentialsOverride): Promise<{
         id: string;
@@ -53,6 +55,11 @@ export declare class InstagramAdapter implements ChannelAdapter {
         name?: string;
         profile_picture_url?: string;
     } | null>;
+    /**
+     * Try fetching user profile from a single Graph API endpoint
+     * Returns raw response data on success, null on failure
+     */
+    private tryFetchProfile;
     /**
      * Build message payload based on content type
      */

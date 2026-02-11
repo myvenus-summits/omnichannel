@@ -342,6 +342,8 @@ export class InstagramAdapter implements ChannelAdapter {
 
   /**
    * Fetch Instagram user profile (username, name)
+   * Tries Instagram Graph API first, then falls back to Facebook Graph API
+   * (handles both IG Login tokens and Facebook Page tokens)
    */
   async fetchUserProfile(
     userId: string,
@@ -358,7 +360,51 @@ export class InstagramAdapter implements ChannelAdapter {
         throw new Error('Instagram access token not configured');
       }
 
-      const url = `${this.igBaseUrl}/${this.apiVersion}/${userId}?fields=username,name,profile_picture_url`;
+      // Try Instagram Graph API first (works with IG Login tokens)
+      let data = await this.tryFetchProfile(this.igBaseUrl, userId, accessToken);
+
+      // Fall back to Facebook Graph API (works with Facebook Page tokens)
+      if (!data) {
+        this.logger.log(`Retrying profile fetch for ${userId} via Facebook Graph API`);
+        data = await this.tryFetchProfile(this.graphBaseUrl, userId, accessToken);
+      }
+
+      if (!data) {
+        this.logger.warn(`Could not fetch profile for ${userId} from either endpoint`);
+        return null;
+      }
+
+      this.logger.log(`Fetched Instagram profile for ${userId}: @${data.username ?? data.name ?? userId}`);
+
+      // Normalize profile_pic → profile_picture_url for return type compatibility
+      return {
+        id: data.id,
+        username: data.username,
+        name: data.name,
+        profile_picture_url: data.profile_pic,
+      };
+    } catch (error) {
+      this.logger.error(`Failed to fetch Instagram user profile for ${userId}`, error);
+      return null;
+    }
+  }
+
+  /**
+   * Try fetching user profile from a single Graph API endpoint
+   * Returns raw response data on success, null on failure
+   */
+  private async tryFetchProfile(
+    baseUrl: string,
+    userId: string,
+    accessToken: string,
+  ): Promise<{
+    id: string;
+    username?: string;
+    name?: string;
+    profile_pic?: string;
+  } | null> {
+    try {
+      const url = `${baseUrl}/${this.apiVersion}/${userId}?fields=name,username,profile_pic`;
 
       const response = await fetch(url, {
         headers: {
@@ -368,21 +414,18 @@ export class InstagramAdapter implements ChannelAdapter {
 
       if (!response.ok) {
         const errorBody = await response.text();
-        this.logger.warn(`Failed to fetch Instagram user profile: ${response.status} - ${errorBody}`);
+        this.logger.warn(`Profile fetch failed (${baseUrl}): ${response.status} - ${errorBody}`);
         return null;
       }
 
-      const data = await response.json() as {
+      return await response.json() as {
         id: string;
         username?: string;
         name?: string;
-        profile_picture_url?: string;
+        profile_pic?: string;
       };
-
-      this.logger.log(`Fetched Instagram profile for ${userId}: @${data.username}`);
-      return data;
     } catch (error) {
-      this.logger.error(`Failed to fetch Instagram user profile for ${userId}`, error);
+      this.logger.error(`Profile fetch error (${baseUrl}) for ${userId}`, error);
       return null;
     }
   }
@@ -480,7 +523,7 @@ export class InstagramAdapter implements ChannelAdapter {
       };
     }
 
-    // Handle read event
+    // Handle read event (watermark-based: all messages up to watermark timestamp are read)
     if (event.read) {
       return {
         type: 'status_update',
@@ -488,8 +531,9 @@ export class InstagramAdapter implements ChannelAdapter {
         contactIdentifier: event.sender.id,
         channelAccountId: entryId,
         status: {
-          messageId: `read_${event.read.watermark}`,
+          messageId: '',
           status: 'read' as MessageStatus,
+          watermark: event.read.watermark,
         },
       };
     }

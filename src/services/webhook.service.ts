@@ -365,26 +365,62 @@ export class WebhookService {
   ): Promise<void> {
     if (!event.status) return;
 
-    const { messageId, status } = event.status;
+    const { messageId, status, watermark } = event.status;
 
-    // 메시지 상태 업데이트
+    // Watermark-based bulk update (Instagram read receipts)
+    if (watermark && this.messageRepository.findOutboundBeforeTimestamp) {
+      const conversation = await this.conversationRepository.findByChannelConversationId(
+        event.channelConversationId,
+      );
+      if (!conversation) {
+        this.logger.warn(
+          `Watermark update: conversation not found for ${event.channelConversationId}`,
+        );
+        return;
+      }
+
+      const messages = await this.messageRepository.findOutboundBeforeTimestamp(
+        conversation.id,
+        new Date(watermark),
+      );
+
+      const toUpdate = messages.filter(m => m.status !== status);
+
+      for (const msg of toUpdate) {
+        await this.messageRepository.updateStatus(msg.channelMessageId, status);
+        if (this.omnichannelGateway) {
+          this.omnichannelGateway.emitMessageStatusUpdate(
+            conversation.id,
+            msg.channelMessageId,
+            status,
+          );
+        }
+      }
+
+      this.logger.log(
+        `Watermark read update: ${toUpdate.length} messages in conversation ${conversation.id}`,
+      );
+      return;
+    }
+
+    // Standard single-message update (WhatsApp, Instagram delivery)
+    if (!messageId) return;
+
     await this.messageService.updateStatus(messageId, status);
 
     this.logger.log(
       `Message status updated: ${messageId} -> ${status}`,
     );
 
-    // 메시지 조회해서 conversationId 가져오기
     const message = await this.messageRepository.findByChannelMessageId(messageId);
-    
+
     if (message && this.omnichannelGateway) {
-      // WebSocket으로 상태 변경 브로드캐스트
       this.omnichannelGateway.emitMessageStatusUpdate(
         message.conversationId,
         messageId,
         status,
       );
-      
+
       this.logger.log(
         `🔔 Broadcast message status update: ${messageId} -> ${status}`,
       );
