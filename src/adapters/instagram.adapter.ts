@@ -57,7 +57,6 @@ export class InstagramAdapter implements ChannelAdapter {
   private readonly pageId: string;
   private readonly instagramBusinessAccountId: string;
   private readonly apiVersion = 'v24.0';
-  private readonly graphBaseUrl = 'https://graph.facebook.com';
   private readonly igBaseUrl = 'https://graph.instagram.com';
 
   readonly channel: ChannelType = 'instagram';
@@ -342,8 +341,8 @@ export class InstagramAdapter implements ChannelAdapter {
 
   /**
    * Fetch Instagram user profile (username, name)
-   * Tries Instagram Graph API first, then falls back to Facebook Graph API
-   * (handles both IG Login tokens and Facebook Page tokens)
+   * 1차: 직접 IGSID 프로필 조회 (graph.instagram.com)
+   * 2차: Conversations API 참가자 정보 조회 (fallback)
    */
   async fetchUserProfile(
     userId: string,
@@ -354,29 +353,71 @@ export class InstagramAdapter implements ChannelAdapter {
     name?: string;
     profile_picture_url?: string;
   } | null> {
+    const accessToken = credentials?.meta?.accessToken || this.accessToken;
+    const igAccountId =
+      credentials?.meta?.instagramBusinessAccountId || this.instagramBusinessAccountId;
+
+    if (!accessToken) {
+      this.logger.warn('Instagram access token not configured');
+      return null;
+    }
+
+    // 1차: 직접 IGSID 프로필 조회
+    const profile = await this.directProfileLookup(userId, accessToken);
+    if (profile) return profile;
+
+    // 2차: Conversations API로 참가자 정보 조회
+    if (igAccountId) {
+      const convProfile = await this.conversationParticipantLookup(
+        igAccountId,
+        userId,
+        accessToken,
+      );
+      if (convProfile) return convProfile;
+    }
+
+    this.logger.warn(`Could not fetch profile for ${userId} via any method`);
+    return null;
+  }
+
+  /**
+   * 직접 IGSID 프로필 조회 (graph.instagram.com)
+   */
+  private async directProfileLookup(
+    userId: string,
+    accessToken: string,
+  ): Promise<{
+    id: string;
+    username?: string;
+    name?: string;
+    profile_picture_url?: string;
+  } | null> {
     try {
-      const accessToken = credentials?.meta?.accessToken || this.accessToken;
-      if (!accessToken) {
-        throw new Error('Instagram access token not configured');
-      }
+      const url = `${this.igBaseUrl}/${this.apiVersion}/${userId}?fields=name,username,profile_pic`;
 
-      // Try Instagram Graph API first (works with IG Login tokens)
-      let data = await this.tryFetchProfile(this.igBaseUrl, userId, accessToken);
+      const response = await fetch(url, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
 
-      // Fall back to Facebook Graph API (works with Facebook Page tokens)
-      if (!data) {
-        this.logger.log(`Retrying profile fetch for ${userId} via Facebook Graph API`);
-        data = await this.tryFetchProfile(this.graphBaseUrl, userId, accessToken);
-      }
-
-      if (!data) {
-        this.logger.warn(`Could not fetch profile for ${userId} from either endpoint`);
+      if (!response.ok) {
+        const errorBody = await response.text();
+        this.logger.warn(
+          `Direct profile lookup failed for ${userId} (HTTP ${response.status}), trying conversations API. Body: ${errorBody}`,
+        );
         return null;
       }
 
-      this.logger.log(`Fetched Instagram profile for ${userId}: @${data.username ?? data.name ?? userId}`);
+      const data = (await response.json()) as {
+        id: string;
+        username?: string;
+        name?: string;
+        profile_pic?: string;
+      };
 
-      // Normalize profile_pic → profile_picture_url for return type compatibility
+      this.logger.log(
+        `Fetched Instagram profile for ${data.id}: @${data.username ?? data.name ?? userId}`,
+      );
+
       return {
         id: data.id,
         username: data.username,
@@ -384,48 +425,82 @@ export class InstagramAdapter implements ChannelAdapter {
         profile_picture_url: data.profile_pic,
       };
     } catch (error) {
-      this.logger.error(`Failed to fetch Instagram user profile for ${userId}`, error);
+      this.logger.error(`Direct profile lookup error for ${userId}`, error);
       return null;
     }
   }
 
   /**
-   * Try fetching user profile from a single Graph API endpoint
-   * Returns raw response data on success, null on failure
+   * Conversations API를 통한 참가자 프로필 조회 (fallback)
+   * 직접 IGSID 조회 실패 시, 메시징 컨텍스트 내 참가자 정보로 프로필을 가져옴
    */
-  private async tryFetchProfile(
-    baseUrl: string,
+  private async conversationParticipantLookup(
+    igAccountId: string,
     userId: string,
     accessToken: string,
   ): Promise<{
     id: string;
     username?: string;
     name?: string;
-    profile_pic?: string;
+    profile_picture_url?: string;
   } | null> {
     try {
-      const url = `${baseUrl}/${this.apiVersion}/${userId}?fields=name,username,profile_pic`;
+      const url =
+        `${this.igBaseUrl}/${this.apiVersion}/${igAccountId}/conversations` +
+        `?user_id=${userId}&fields=participants`;
 
       const response = await fetch(url, {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
+        headers: { Authorization: `Bearer ${accessToken}` },
       });
 
       if (!response.ok) {
         const errorBody = await response.text();
-        this.logger.warn(`Profile fetch failed (${baseUrl}): ${response.status} - ${errorBody}`);
+        this.logger.warn(
+          `Conversation participant lookup failed for ${userId} (HTTP ${response.status}): ${errorBody}`,
+        );
         return null;
       }
 
-      return await response.json() as {
-        id: string;
-        username?: string;
-        name?: string;
-        profile_pic?: string;
+      const result = (await response.json()) as {
+        data: Array<{
+          participants?: {
+            data: Array<{
+              id: string;
+              username?: string;
+              name?: string;
+              profile_pic?: string;
+            }>;
+          };
+        }>;
       };
+
+      // 대화 참가자 중 해당 userId와 일치하는 참가자 찾기
+      for (const conversation of result.data) {
+        const participant = conversation.participants?.data?.find(
+          (p) => p.id === userId,
+        );
+        if (participant) {
+          this.logger.log(
+            `Fetched Instagram profile via conversations API for ${userId}: @${participant.username ?? participant.name ?? userId}`,
+          );
+          return {
+            id: participant.id,
+            username: participant.username,
+            name: participant.name,
+            profile_picture_url: participant.profile_pic,
+          };
+        }
+      }
+
+      this.logger.warn(
+        `Conversation participant lookup: no matching participant found for ${userId}`,
+      );
+      return null;
     } catch (error) {
-      this.logger.error(`Profile fetch error (${baseUrl}) for ${userId}`, error);
+      this.logger.error(
+        `Conversation participant lookup error for ${userId}`,
+        error,
+      );
       return null;
     }
   }
