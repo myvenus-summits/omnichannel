@@ -16,7 +16,6 @@ class CreateMessageTemplateDto {
     content;
     variables;
     category;
-    twilioContentSid;
     previewText;
 }
 exports.CreateMessageTemplateDto = CreateMessageTemplateDto;
@@ -43,11 +42,6 @@ __decorate([
     (0, class_validator_1.IsString)(),
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", String)
-], CreateMessageTemplateDto.prototype, "twilioContentSid", void 0);
-__decorate([
-    (0, class_validator_1.IsString)(),
-    (0, class_validator_1.IsOptional)(),
-    __metadata("design:type", String)
 ], CreateMessageTemplateDto.prototype, "previewText", void 0);
 class UpdateMessageTemplateDto {
     name;
@@ -55,7 +49,6 @@ class UpdateMessageTemplateDto {
     variables;
     category;
     status;
-    twilioContentSid;
     previewText;
 }
 exports.UpdateMessageTemplateDto = UpdateMessageTemplateDto;
@@ -81,15 +74,10 @@ __decorate([
     __metadata("design:type", String)
 ], UpdateMessageTemplateDto.prototype, "category", void 0);
 __decorate([
-    (0, class_validator_1.IsEnum)(['draft', 'pending', 'approved', 'rejected']),
+    (0, class_validator_1.IsEnum)(['active', 'inactive']),
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", String)
 ], UpdateMessageTemplateDto.prototype, "status", void 0);
-__decorate([
-    (0, class_validator_1.IsString)(),
-    (0, class_validator_1.IsOptional)(),
-    __metadata("design:type", String)
-], UpdateMessageTemplateDto.prototype, "twilioContentSid", void 0);
 __decorate([
     (0, class_validator_1.IsString)(),
     (0, class_validator_1.IsOptional)(),

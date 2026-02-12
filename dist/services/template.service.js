@@ -70,8 +70,7 @@ let TemplateService = TemplateService_1 = class TemplateService {
             content: data.content,
             variables,
             category: data.category ?? null,
-            status: 'draft',
-            twilioContentSid: data.twilioContentSid ?? null,
+            status: 'active',
             previewText: data.previewText ?? null,
         });
     }
@@ -114,12 +113,8 @@ let TemplateService = TemplateService_1 = class TemplateService {
             throw new Error('WhatsApp adapter not configured');
         }
         const template = await this.findOne(templateId);
-        // Twilio Content SID가 없으면 에러
-        if (!template.twilioContentSid) {
-            throw new Error('Template does not have a Twilio Content SID');
-        }
         // 발송
-        const result = await this.whatsappAdapter.sendTemplateMessage(data.recipientIdentifier, template.twilioContentSid, data.variables ?? {});
+        const result = await this.whatsappAdapter.sendTemplateMessage(data.recipientIdentifier, template.content, data.variables ?? {});
         // 히스토리 저장
         const history = await this.historyRepository.create({
             templateId,

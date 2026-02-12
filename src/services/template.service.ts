@@ -88,8 +88,7 @@ export class TemplateService {
       content: data.content,
       variables,
       category: data.category ?? null,
-      status: 'draft',
-      twilioContentSid: data.twilioContentSid ?? null,
+      status: 'active',
       previewText: data.previewText ?? null,
     });
   }
@@ -142,15 +141,10 @@ export class TemplateService {
 
     const template = await this.findOne(templateId);
 
-    // Twilio Content SID가 없으면 에러
-    if (!template.twilioContentSid) {
-      throw new Error('Template does not have a Twilio Content SID');
-    }
-
     // 발송
     const result = await this.whatsappAdapter.sendTemplateMessage(
       data.recipientIdentifier,
-      template.twilioContentSid,
+      template.content,
       data.variables ?? {},
     );
 
