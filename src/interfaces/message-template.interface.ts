@@ -1,4 +1,4 @@
-export type TemplateStatus = 'draft' | 'pending' | 'approved' | 'rejected';
+export type TemplateStatus = 'active' | 'inactive';
 export type TemplateHistoryStatus = 'sent' | 'delivered' | 'read' | 'failed';
 
 /**
@@ -11,7 +11,6 @@ export interface IMessageTemplate {
   variables: string[];
   category: string | null;
   status: TemplateStatus;
-  twilioContentSid: string | null;
   previewText: string | null;
   metadata: Record<string, unknown> | null;
   createdAt: Date;
@@ -42,7 +41,6 @@ export interface CreateTemplateData {
   content: string;
   variables?: string[];
   category?: string;
-  twilioContentSid?: string;
   previewText?: string;
 }
 
@@ -55,7 +53,6 @@ export interface UpdateTemplateData {
   variables?: string[];
   category?: string;
   status?: TemplateStatus;
-  twilioContentSid?: string;
   previewText?: string;
 }
 
@@ -78,7 +75,6 @@ export interface IMessageTemplateRepository {
     search?: string;
   }): Promise<IMessageTemplate[]>;
   findOne(id: number): Promise<IMessageTemplate | null>;
-  findByContentSid(twilioContentSid: string): Promise<IMessageTemplate | null>;
   create(data: Partial<IMessageTemplate>): Promise<IMessageTemplate>;
   update(id: number, data: Partial<IMessageTemplate>): Promise<IMessageTemplate>;
   delete(id: number): Promise<void>;

@@ -19,10 +19,6 @@ export class CreateMessageTemplateDto {
 
   @IsString()
   @IsOptional()
-  twilioContentSid?: string;
-
-  @IsString()
-  @IsOptional()
   previewText?: string;
 }
 
@@ -44,13 +40,9 @@ export class UpdateMessageTemplateDto {
   @IsOptional()
   category?: string;
 
-  @IsEnum(['draft', 'pending', 'approved', 'rejected'])
+  @IsEnum(['active', 'inactive'])
   @IsOptional()
   status?: TemplateStatus;
-
-  @IsString()
-  @IsOptional()
-  twilioContentSid?: string;
 
   @IsString()
   @IsOptional()

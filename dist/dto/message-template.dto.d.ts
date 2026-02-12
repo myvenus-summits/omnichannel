@@ -4,7 +4,6 @@ export declare class CreateMessageTemplateDto {
     content: string;
     variables?: string[];
     category?: string;
-    twilioContentSid?: string;
     previewText?: string;
 }
 export declare class UpdateMessageTemplateDto {
@@ -13,7 +12,6 @@ export declare class UpdateMessageTemplateDto {
     variables?: string[];
     category?: string;
     status?: TemplateStatus;
-    twilioContentSid?: string;
     previewText?: string;
 }
 export declare class SendTemplateDto {
