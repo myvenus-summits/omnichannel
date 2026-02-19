@@ -23,7 +23,7 @@ export declare class MessageService {
     }): Promise<IMessage[]>;
     findOne(id: number): Promise<IMessage>;
     create(data: Partial<IMessage>): Promise<IMessage>;
-    sendMessage(conversationId: number, dto: CreateMessageDto, senderUserId?: number): Promise<IMessage>;
+    sendMessage(conversationId: number, dto: CreateMessageDto, senderUserId?: number, senderName?: string): Promise<IMessage>;
     createFromWebhook(conversationId: number, data: {
         channelMessageId: string;
         direction: MessageDirection;

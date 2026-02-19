@@ -6,6 +6,7 @@ import {
   Param,
   Query,
   Body,
+  Req,
   ParseIntPipe,
 } from '@nestjs/common';
 import {
@@ -82,8 +83,9 @@ export class ConversationController {
   async sendMessage(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: CreateMessageDto,
+    @Req() req: any,
   ) {
-    return this.messageService.sendMessage(id, dto);
+    return this.messageService.sendMessage(id, dto, req.user?.id, req.user?.name);
   }
 
   @Post(':id/messages/:messageId/resend')
