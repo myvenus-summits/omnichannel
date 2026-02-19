@@ -74,6 +74,7 @@ export class MessageService {
     conversationId: number,
     dto: CreateMessageDto,
     senderUserId?: number,
+    senderName?: string,
   ): Promise<IMessage> {
     const conversation = await this.conversationService.findOne(conversationId);
 
@@ -142,7 +143,7 @@ export class MessageService {
       replyToMessageId,
       replyToPreview,
       status: 'sent',
-      senderName: null,
+      senderName: senderName ?? null,
       metadata: null,
     });
 

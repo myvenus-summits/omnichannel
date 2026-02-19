@@ -62,7 +62,7 @@ let MessageService = MessageService_1 = class MessageService {
     async create(data) {
         return this.messageRepository.create(data);
     }
-    async sendMessage(conversationId, dto, senderUserId) {
+    async sendMessage(conversationId, dto, senderUserId, senderName) {
         const conversation = await this.conversationService.findOne(conversationId);
         // 멀티테넌트: conversation의 channelConfigId로 credentials 조회
         const credentials = await this.resolveCredentials(conversation.channelConfigId);
@@ -112,7 +112,7 @@ let MessageService = MessageService_1 = class MessageService {
             replyToMessageId,
             replyToPreview,
             status: 'sent',
-            senderName: null,
+            senderName: senderName ?? null,
             metadata: null,
         });
         await this.conversationService.updateLastMessage(conversationId, dto.contentText?.substring(0, 100) ?? '[Media]', new Date());

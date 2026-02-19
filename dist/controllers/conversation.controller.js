@@ -38,8 +38,8 @@ let ConversationController = class ConversationController {
             before,
         });
     }
-    async sendMessage(id, dto) {
-        return this.messageService.sendMessage(id, dto);
+    async sendMessage(id, dto, req) {
+        return this.messageService.sendMessage(id, dto, req.user?.id, req.user?.name);
     }
     async resendMessage(id, messageId) {
         await this.conversationService.findOne(id);
@@ -105,8 +105,9 @@ __decorate([
     (0, swagger_1.ApiResponse)({ status: 404, description: '대화를 찾을 수 없음' }),
     __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
     __param(1, (0, common_1.Body)()),
+    __param(2, (0, common_1.Req)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Number, dto_1.CreateMessageDto]),
+    __metadata("design:paramtypes", [Number, dto_1.CreateMessageDto, Object]),
     __metadata("design:returntype", Promise)
 ], ConversationController.prototype, "sendMessage", null);
 __decorate([
