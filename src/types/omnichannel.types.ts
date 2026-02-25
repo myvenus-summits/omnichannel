@@ -48,7 +48,7 @@ export interface NormalizedMessage {
 }
 
 export interface NormalizedWebhookEvent {
-  type: 'message' | 'status_update' | 'conversation_created';
+  type: 'message' | 'status_update' | 'conversation_created' | 'reaction';
   channelConversationId: string;
   contactIdentifier: string;
   contactName?: string;
@@ -60,5 +60,10 @@ export interface NormalizedWebhookEvent {
     watermark?: number;
     errorCode?: number;
     errorMessage?: string;
+  };
+  reaction?: {
+    targetMessageId: string;
+    emoji: string;
+    action: 'react' | 'unreact';
   };
 }

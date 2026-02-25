@@ -72,6 +72,7 @@ export interface IMessageRepository {
         errorMessage?: string;
     }): Promise<void>;
     findOutboundBeforeTimestamp?(conversationId: number, timestamp: Date): Promise<IMessage[]>;
+    updateMetadata?(messageId: number, metadata: Record<string, unknown>): Promise<void>;
     deleteByConversation?(conversationId: number): Promise<number>;
 }
 /**

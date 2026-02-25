@@ -22,6 +22,7 @@ export declare class TwilioWebhookDto {
     WaId?: string;
     NumMedia?: string;
     NumSegments?: string;
+    ButtonPayload?: string;
     ReferralNumMedia?: string;
     ApiVersion?: string;
 }

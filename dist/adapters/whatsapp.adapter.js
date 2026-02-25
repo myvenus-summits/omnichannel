@@ -273,6 +273,24 @@ let WhatsAppAdapter = WhatsAppAdapter_1 = class WhatsAppAdapter {
                 },
             };
         }
+        // Check if this is a reaction (ButtonPayload with emoji, no Body)
+        const rawPayloadForReaction = twilioPayload;
+        const buttonPayload = rawPayloadForReaction['ButtonPayload'];
+        const originalMessageSid = rawPayloadForReaction['OriginalRepliedMessageSid'];
+        if (buttonPayload && !twilioPayload.Body && originalMessageSid) {
+            const conversationId = from;
+            return {
+                type: 'reaction',
+                channelConversationId: conversationId,
+                contactIdentifier: from,
+                channelAccountId: to,
+                reaction: {
+                    targetMessageId: originalMessageSid,
+                    emoji: buttonPayload,
+                    action: 'react',
+                },
+            };
+        }
         // This is an incoming message
         // Determine direction: inbound if From is the customer (whatsapp:+xxx), outbound if from our number
         // Fix: Handle case when whatsappNumber is not configured (empty string check)

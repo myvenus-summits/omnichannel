@@ -19,6 +19,15 @@ export declare class OmnichannelGateway implements OnGatewayConnection, OnGatewa
      */
     emitConversationStatusChange(conversationId: number, status: string): void;
     /**
+     * 메시지 리액션 이벤트 발송
+     */
+    emitMessageReaction(conversationId: number | string, data: {
+        messageId: number | string;
+        emoji: string;
+        action: 'react' | 'unreact';
+        reactedBy: string;
+    }): void;
+    /**
      * 메시지 상태 변경 알림 (sent -> delivered -> read -> failed)
      */
     emitMessageStatusUpdate(conversationId: number, channelMessageId: string, status: string, errorMetadata?: {
