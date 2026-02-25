@@ -23,6 +23,9 @@ class ConversationFilterDto {
     clinicId;
     regionId;
     channelConfigId;
+    language;
+    channels;
+    languages;
     page = 1;
     limit = 20;
 }
@@ -116,6 +119,39 @@ __decorate([
     (0, class_validator_1.IsNumber)(),
     __metadata("design:type", Number)
 ], ConversationFilterDto.prototype, "channelConfigId", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({
+        description: '언어 필터 (단일)',
+        example: 'en',
+    }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], ConversationFilterDto.prototype, "language", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({
+        description: '채널 필터 (복수)',
+        type: [String],
+        example: ['whatsapp', 'instagram'],
+    }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsArray)(),
+    (0, class_validator_1.IsString)({ each: true }),
+    (0, class_transformer_1.Transform)(({ value }) => typeof value === 'string' ? value.split(',') : value),
+    __metadata("design:type", Array)
+], ConversationFilterDto.prototype, "channels", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({
+        description: '언어 필터 (복수)',
+        type: [String],
+        example: ['en', 'id'],
+    }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsArray)(),
+    (0, class_validator_1.IsString)({ each: true }),
+    (0, class_transformer_1.Transform)(({ value }) => typeof value === 'string' ? value.split(',') : value),
+    __metadata("design:type", Array)
+], ConversationFilterDto.prototype, "languages", void 0);
 __decorate([
     (0, swagger_1.ApiPropertyOptional)({
         description: '페이지 번호',

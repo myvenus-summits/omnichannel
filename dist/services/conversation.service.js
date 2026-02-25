@@ -35,6 +35,9 @@ let ConversationService = ConversationService_1 = class ConversationService {
             clinicId: filter.clinicId,
             regionId: filter.regionId,
             channelConfigId: filter.channelConfigId,
+            language: filter.language,
+            channels: filter.channels,
+            languages: filter.languages,
         });
     }
     async findOne(id) {

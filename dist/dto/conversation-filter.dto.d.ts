@@ -9,6 +9,9 @@ export declare class ConversationFilterDto {
     clinicId?: number;
     regionId?: number;
     channelConfigId?: number;
+    language?: string;
+    channels?: string[];
+    languages?: string[];
     page?: number;
     limit?: number;
 }
