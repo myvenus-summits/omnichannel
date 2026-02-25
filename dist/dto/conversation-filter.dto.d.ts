@@ -12,6 +12,7 @@ export declare class ConversationFilterDto {
     language?: string;
     channels?: string[];
     languages?: string[];
+    reservationBadge?: string;
     page?: number;
     limit?: number;
 }
