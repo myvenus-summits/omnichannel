@@ -131,7 +131,7 @@ export class WebhookService {
 
     // Resolve clinic/channel config from webhook identifier (멀티테넌트)
     let clinicId: number | null = null;
-    let regionId: number | string | null = null;
+    let tenantContext: Record<string, unknown> = {};
     let channelConfigId: number | null = null;
 
     if (this.webhookChannelResolver) {
@@ -143,7 +143,7 @@ export class WebhookService {
         );
         if (resolved) {
           clinicId = resolved.clinicId;
-          regionId = resolved.regionId ?? null;
+          tenantContext = resolved.tenantContext ?? {};
           channelConfigId = resolved.channelConfigId;
         }
       } catch (error) {
@@ -189,19 +189,21 @@ export class WebhookService {
         lastMessageAt: null,
         lastMessagePreview: null,
         lastInboundAt: event.message.direction === 'inbound' ? event.message.timestamp : null,
-        metadata: null,
+        metadata: Object.keys(tenantContext).length > 0 ? { ...tenantContext } : null,
         clinicId,
-        regionId,
         channelConfigId,
       });
       this.logger.log(`Created new conversation: ${conversation.id} (clinic: ${clinicId})`);
     } else if (conversation && !conversation.channelConfigId && channelConfigId) {
       // Backfill channelConfigId for conversations created before config resolution was available
-      await this.conversationRepository.update(conversation.id, {
+      const backfillData: Record<string, unknown> = {
         channelConfigId,
         clinicId: clinicId ?? conversation.clinicId,
-        regionId: regionId ?? conversation.regionId,
-      });
+      };
+      if (Object.keys(tenantContext).length > 0) {
+        backfillData.metadata = { ...(conversation.metadata ?? {}), ...tenantContext };
+      }
+      await this.conversationRepository.update(conversation.id, backfillData);
       conversation.channelConfigId = channelConfigId;
       this.logger.log(`Backfilled channelConfigId=${channelConfigId} for conversation ${conversation.id}`);
     }

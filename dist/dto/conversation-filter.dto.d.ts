@@ -7,7 +7,7 @@ export declare class ConversationFilterDto {
     tags?: string[];
     search?: string;
     clinicId?: number;
-    regionId?: number;
+    customFilters?: Record<string, unknown>;
     channelConfigId?: number;
     language?: string;
     channels?: string[];

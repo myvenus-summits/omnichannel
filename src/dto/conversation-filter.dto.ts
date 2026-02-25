@@ -77,13 +77,18 @@ export class ConversationFilterDto {
   clinicId?: number;
 
   @ApiPropertyOptional({
-    description: '지역 ID 필터 (멀티테넌트)',
-    example: 1,
+    description: '프로젝트별 커스텀 필터 (JSON string)',
+    example: '{"regionId":"indonesia"}',
   })
   @IsOptional()
-  @Type(() => Number)
-  @IsNumber()
-  regionId?: number;
+  @IsString()
+  @Transform(({ value }: { value: unknown }) => {
+    if (typeof value === 'string') {
+      try { return JSON.parse(value); } catch { return {}; }
+    }
+    return value ?? {};
+  })
+  customFilters?: Record<string, unknown>;
 
   @ApiPropertyOptional({
     description: '채널 설정 ID 필터',

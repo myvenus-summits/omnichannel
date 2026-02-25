@@ -31,8 +31,6 @@ export interface IConversationRepository {
         customerId?: number;
         /** @since 1.1.0 멀티테넌트 필터 */
         clinicId?: number;
-        /** @since 1.1.0 멀티테넌트 필터 */
-        regionId?: number | string;
         /** @since 1.1.0 채널 설정 필터 */
         channelConfigId?: number;
         /** 언어 필터 (단일) */
@@ -43,6 +41,8 @@ export interface IConversationRepository {
         languages?: string[];
         /** 예약 배지 필터 (COMPLETED, CONFIRMED, IN_PROGRESS) */
         reservationBadge?: string;
+        /** 프로젝트별 커스텀 필터 키 */
+        [key: string]: unknown;
     }): Promise<PaginatedResult<IConversation>>;
     findOne(id: number): Promise<IConversation | null>;
     findByChannelConversationId(channelConversationId: string): Promise<IConversation | null>;
