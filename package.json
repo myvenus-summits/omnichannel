@@ -1,6 +1,6 @@
 {
   "name": "@myvenus-summits/omnichannel",
-  "version": "1.5.0",
+  "version": "1.6.0",
   "description": "Omnichannel messaging module for NestJS (WhatsApp, Instagram, LINE) - Interface-based, bring your own repository",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

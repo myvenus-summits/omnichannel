@@ -37,6 +37,12 @@ export interface IConversationRepository {
     regionId?: number | string;
     /** @since 1.1.0 채널 설정 필터 */
     channelConfigId?: number;
+    /** 언어 필터 (단일) */
+    language?: string;
+    /** 채널 필터 (복수) */
+    channels?: string[];
+    /** 언어 필터 (복수) */
+    languages?: string[];
   }): Promise<PaginatedResult<IConversation>>;
 
   findOne(id: number): Promise<IConversation | null>;

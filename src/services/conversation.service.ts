@@ -30,6 +30,9 @@ export class ConversationService {
       clinicId: filter.clinicId,
       regionId: filter.regionId,
       channelConfigId: filter.channelConfigId,
+      language: filter.language,
+      channels: filter.channels,
+      languages: filter.languages,
     });
   }
 

@@ -95,6 +95,40 @@ export class ConversationFilterDto {
   channelConfigId?: number;
 
   @ApiPropertyOptional({
+    description: '언어 필터 (단일)',
+    example: 'en',
+  })
+  @IsOptional()
+  @IsString()
+  language?: string;
+
+  @ApiPropertyOptional({
+    description: '채널 필터 (복수)',
+    type: [String],
+    example: ['whatsapp', 'instagram'],
+  })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.split(',') : (value as string[]),
+  )
+  channels?: string[];
+
+  @ApiPropertyOptional({
+    description: '언어 필터 (복수)',
+    type: [String],
+    example: ['en', 'id'],
+  })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.split(',') : (value as string[]),
+  )
+  languages?: string[];
+
+  @ApiPropertyOptional({
     description: '페이지 번호',
     default: 1,
     minimum: 1,
