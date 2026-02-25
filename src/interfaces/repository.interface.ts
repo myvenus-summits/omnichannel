@@ -82,6 +82,11 @@ export interface IMessageRepository {
     timestamp: Date,
   ): Promise<IMessage[]>;
 
+  updateMetadata?(
+    messageId: number,
+    metadata: Record<string, unknown>,
+  ): Promise<void>;
+
   // Archive related methods
   deleteByConversation?(conversationId: number): Promise<number>;
 }

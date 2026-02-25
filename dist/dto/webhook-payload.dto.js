@@ -37,6 +37,7 @@ class TwilioWebhookDto {
     WaId;
     NumMedia;
     NumSegments;
+    ButtonPayload;
     ReferralNumMedia;
     ApiVersion;
 }
@@ -155,6 +156,12 @@ __decorate([
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], TwilioWebhookDto.prototype, "NumSegments", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({ description: 'Button payload (WhatsApp reactions)' }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], TwilioWebhookDto.prototype, "ButtonPayload", void 0);
 __decorate([
     (0, swagger_1.ApiPropertyOptional)({ description: 'Referral info (WhatsApp ads)' }),
     (0, class_validator_1.IsOptional)(),

@@ -32,6 +32,7 @@ export declare class WebhookService {
      */
     private resolveInstagramUsername;
     private handleStatusUpdate;
+    private handleReactionEvent;
     private handleConversationCreated;
 }
 //# sourceMappingURL=webhook.service.d.ts.map

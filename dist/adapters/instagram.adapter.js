@@ -445,6 +445,21 @@ let InstagramAdapter = InstagramAdapter_1 = class InstagramAdapter {
                 },
             };
         }
+        // Handle reaction event
+        if (event.reaction) {
+            const contactIdentifier = event.sender.id;
+            return {
+                type: 'reaction',
+                channelConversationId: this.buildConversationId(contactIdentifier),
+                contactIdentifier,
+                channelAccountId: entryId,
+                reaction: {
+                    targetMessageId: event.reaction.mid,
+                    emoji: event.reaction.emoji || event.reaction.reaction || '',
+                    action: event.reaction.action,
+                },
+            };
+        }
         // Skip echo messages — outbound messages are tracked when sent via API.
         // Echo webhooks can create incorrect conversations with business account ID as contact.
         if (event.message?.is_echo) {

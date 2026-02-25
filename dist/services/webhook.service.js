@@ -102,6 +102,9 @@ let WebhookService = WebhookService_1 = class WebhookService {
             case 'conversation_created':
                 await this.handleConversationCreated(event, channel);
                 break;
+            case 'reaction':
+                await this.handleReactionEvent(event);
+                break;
             default:
                 this.logger.warn(`Unknown event type: ${String(event.type)}`);
         }
@@ -340,6 +343,52 @@ let WebhookService = WebhookService_1 = class WebhookService {
             this.omnichannelGateway.emitMessageStatusUpdate(message.conversationId, messageId, status, errorMetadata);
             this.logger.log(`🔔 Broadcast message status update: ${messageId} -> ${status}`);
         }
+    }
+    async handleReactionEvent(event) {
+        if (!event.reaction)
+            return;
+        const { targetMessageId, emoji, action } = event.reaction;
+        // Find the target message by channelMessageId
+        const message = await this.messageRepository.findByChannelMessageId(targetMessageId);
+        if (!message) {
+            this.logger.warn(`Reaction target message not found: ${targetMessageId}`);
+            return;
+        }
+        // Find the conversation
+        const conversation = await this.conversationRepository.findByChannelConversationId(event.channelConversationId);
+        if (!conversation) {
+            this.logger.warn(`Reaction: conversation not found for ${event.channelConversationId}`);
+            return;
+        }
+        // Store reaction in message metadata
+        const metadata = message.metadata ?? {};
+        const reactions = metadata.reactions ?? [];
+        if (action === 'react') {
+            const alreadyExists = reactions.some(r => r.emoji === emoji && r.reactedBy === event.contactIdentifier);
+            if (!alreadyExists) {
+                reactions.push({ emoji, reactedBy: event.contactIdentifier });
+            }
+        }
+        else {
+            const idx = reactions.findIndex(r => r.emoji === emoji && r.reactedBy === event.contactIdentifier);
+            if (idx >= 0) {
+                reactions.splice(idx, 1);
+            }
+        }
+        // Update message metadata with reactions
+        if (this.messageRepository.updateMetadata) {
+            await this.messageRepository.updateMetadata(message.id, { reactions });
+        }
+        // Emit real-time event
+        if (this.omnichannelGateway) {
+            this.omnichannelGateway.emitMessageReaction(conversation.id, {
+                messageId: message.id,
+                emoji,
+                action,
+                reactedBy: event.contactIdentifier,
+            });
+        }
+        this.logger.log(`Reaction ${action}: ${emoji} on message ${message.id} in conversation ${conversation.id}`);
     }
     async handleConversationCreated(event, channel) {
         const existing = await this.conversationService.findByChannelConversationId(event.channelConversationId);

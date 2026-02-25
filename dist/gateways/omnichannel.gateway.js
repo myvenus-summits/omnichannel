@@ -73,6 +73,14 @@ let OmnichannelGateway = OmnichannelGateway_1 = class OmnichannelGateway {
         });
     }
     /**
+     * 메시지 리액션 이벤트 발송
+     */
+    emitMessageReaction(conversationId, data) {
+        const payload = { conversationId, ...data };
+        this.logger.log(`📤 Emitting message:reaction: ${JSON.stringify(payload)}`);
+        this.server.emit('message:reaction', payload);
+    }
+    /**
      * 메시지 상태 변경 알림 (sent -> delivered -> read -> failed)
      */
     emitMessageStatusUpdate(conversationId, channelMessageId, status, errorMetadata) {

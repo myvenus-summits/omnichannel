@@ -103,6 +103,11 @@ export class TwilioWebhookDto {
   @IsString()
   NumSegments?: string;
 
+  @ApiPropertyOptional({ description: 'Button payload (WhatsApp reactions)' })
+  @IsOptional()
+  @IsString()
+  ButtonPayload?: string;
+
   @ApiPropertyOptional({ description: 'Referral info (WhatsApp ads)' })
   @IsOptional()
   @IsString()
