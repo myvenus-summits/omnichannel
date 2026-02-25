@@ -129,6 +129,14 @@ export class ConversationFilterDto {
   languages?: string[];
 
   @ApiPropertyOptional({
+    description: '예약 배지 필터 (COMPLETED, CONFIRMED, IN_PROGRESS)',
+    enum: ['COMPLETED', 'CONFIRMED', 'IN_PROGRESS'],
+  })
+  @IsOptional()
+  @IsString()
+  reservationBadge?: string;
+
+  @ApiPropertyOptional({
     description: '페이지 번호',
     default: 1,
     minimum: 1,

@@ -38,6 +38,7 @@ let ConversationService = ConversationService_1 = class ConversationService {
             language: filter.language,
             channels: filter.channels,
             languages: filter.languages,
+            reservationBadge: filter.reservationBadge,
         });
     }
     async findOne(id) {

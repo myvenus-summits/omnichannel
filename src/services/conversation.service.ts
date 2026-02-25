@@ -33,6 +33,7 @@ export class ConversationService {
       language: filter.language,
       channels: filter.channels,
       languages: filter.languages,
+      reservationBadge: filter.reservationBadge,
     });
   }
 

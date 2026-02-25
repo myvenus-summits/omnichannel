@@ -43,6 +43,8 @@ export interface IConversationRepository {
     channels?: string[];
     /** 언어 필터 (복수) */
     languages?: string[];
+    /** 예약 배지 필터 (COMPLETED, CONFIRMED, IN_PROGRESS) */
+    reservationBadge?: string;
   }): Promise<PaginatedResult<IConversation>>;
 
   findOne(id: number): Promise<IConversation | null>;

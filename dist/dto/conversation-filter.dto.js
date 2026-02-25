@@ -26,6 +26,7 @@ class ConversationFilterDto {
     language;
     channels;
     languages;
+    reservationBadge;
     page = 1;
     limit = 20;
 }
@@ -152,6 +153,15 @@ __decorate([
     (0, class_transformer_1.Transform)(({ value }) => typeof value === 'string' ? value.split(',') : value),
     __metadata("design:type", Array)
 ], ConversationFilterDto.prototype, "languages", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({
+        description: '예약 배지 필터 (COMPLETED, CONFIRMED, IN_PROGRESS)',
+        enum: ['COMPLETED', 'CONFIRMED', 'IN_PROGRESS'],
+    }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], ConversationFilterDto.prototype, "reservationBadge", void 0);
 __decorate([
     (0, swagger_1.ApiPropertyOptional)({
         description: '페이지 번호',
