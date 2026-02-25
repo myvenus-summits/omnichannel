@@ -18,22 +18,13 @@ export class ConversationService {
   ) {}
 
   async findAll(filter: ConversationFilterDto) {
+    const { customFilters, ...baseFilter } = filter;
     return this.conversationRepository.findAll({
-      channel: filter.channel,
+      ...baseFilter,
+      ...(customFilters ?? {}),
       status: filter.status ?? 'open',
-      assignedUserId: filter.assignedUserId,
-      unassigned: filter.unassigned,
-      tags: filter.tags,
-      search: filter.search,
       page: filter.page ?? 1,
       limit: filter.limit ?? 20,
-      clinicId: filter.clinicId,
-      regionId: filter.regionId,
-      channelConfigId: filter.channelConfigId,
-      language: filter.language,
-      channels: filter.channels,
-      languages: filter.languages,
-      reservationBadge: filter.reservationBadge,
     });
   }
 

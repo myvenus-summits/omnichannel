@@ -30,12 +30,6 @@ export interface IConversation {
   clinicId?: number | null;
 
   /**
-   * 지역 ID (멀티테넌트)
-   * @since 1.1.0
-   */
-  regionId?: number | string | null;
-
-  /**
    * 채널 설정 ID (clinic_channel_config FK)
    * @since 1.1.0
    */

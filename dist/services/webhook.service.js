@@ -117,7 +117,7 @@ let WebhookService = WebhookService_1 = class WebhookService {
         }
         // Resolve clinic/channel config from webhook identifier (멀티테넌트)
         let clinicId = null;
-        let regionId = null;
+        let tenantContext = {};
         let channelConfigId = null;
         if (this.webhookChannelResolver) {
             try {
@@ -125,7 +125,7 @@ let WebhookService = WebhookService_1 = class WebhookService {
                 const resolved = await this.webhookChannelResolver(channel, resolverIdentifier);
                 if (resolved) {
                     clinicId = resolved.clinicId;
-                    regionId = resolved.regionId ?? null;
+                    tenantContext = resolved.tenantContext ?? {};
                     channelConfigId = resolved.channelConfigId;
                 }
             }
@@ -165,20 +165,22 @@ let WebhookService = WebhookService_1 = class WebhookService {
                 lastMessageAt: null,
                 lastMessagePreview: null,
                 lastInboundAt: event.message.direction === 'inbound' ? event.message.timestamp : null,
-                metadata: null,
+                metadata: Object.keys(tenantContext).length > 0 ? { ...tenantContext } : null,
                 clinicId,
-                regionId,
                 channelConfigId,
             });
             this.logger.log(`Created new conversation: ${conversation.id} (clinic: ${clinicId})`);
         }
         else if (conversation && !conversation.channelConfigId && channelConfigId) {
             // Backfill channelConfigId for conversations created before config resolution was available
-            await this.conversationRepository.update(conversation.id, {
+            const backfillData = {
                 channelConfigId,
                 clinicId: clinicId ?? conversation.clinicId,
-                regionId: regionId ?? conversation.regionId,
-            });
+            };
+            if (Object.keys(tenantContext).length > 0) {
+                backfillData.metadata = { ...(conversation.metadata ?? {}), ...tenantContext };
+            }
+            await this.conversationRepository.update(conversation.id, backfillData);
             conversation.channelConfigId = channelConfigId;
             this.logger.log(`Backfilled channelConfigId=${channelConfigId} for conversation ${conversation.id}`);
         }

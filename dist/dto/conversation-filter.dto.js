@@ -21,7 +21,7 @@ class ConversationFilterDto {
     tags;
     search;
     clinicId;
-    regionId;
+    customFilters;
     channelConfigId;
     language;
     channels;
@@ -102,14 +102,24 @@ __decorate([
 ], ConversationFilterDto.prototype, "clinicId", void 0);
 __decorate([
     (0, swagger_1.ApiPropertyOptional)({
-        description: '지역 ID 필터 (멀티테넌트)',
-        example: 1,
+        description: '프로젝트별 커스텀 필터 (JSON string)',
+        example: '{"regionId":"indonesia"}',
     }),
     (0, class_validator_1.IsOptional)(),
-    (0, class_transformer_1.Type)(() => Number),
-    (0, class_validator_1.IsNumber)(),
-    __metadata("design:type", Number)
-], ConversationFilterDto.prototype, "regionId", void 0);
+    (0, class_validator_1.IsString)(),
+    (0, class_transformer_1.Transform)(({ value }) => {
+        if (typeof value === 'string') {
+            try {
+                return JSON.parse(value);
+            }
+            catch {
+                return {};
+            }
+        }
+        return value ?? {};
+    }),
+    __metadata("design:type", Object)
+], ConversationFilterDto.prototype, "customFilters", void 0);
 __decorate([
     (0, swagger_1.ApiPropertyOptional)({
         description: '채널 설정 ID 필터',

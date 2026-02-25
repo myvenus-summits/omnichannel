@@ -109,7 +109,7 @@ export type ChannelCredentialsResolver = (
 export interface ResolvedChannelConfig {
   channelConfigId: number;
   clinicId: number;
-  regionId?: number | string;
+  tenantContext?: Record<string, unknown>;
   twilio?: TwilioConfig;
   meta?: MetaConfig;
 }
