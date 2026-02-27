@@ -11,19 +11,24 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
+var ConversationController_1;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ConversationController = void 0;
 const common_1 = require("@nestjs/common");
 const swagger_1 = require("@nestjs/swagger");
 const conversation_service_1 = require("../services/conversation.service");
 const message_service_1 = require("../services/message.service");
+const omnichannel_gateway_1 = require("../gateways/omnichannel.gateway");
 const dto_1 = require("../dto");
-let ConversationController = class ConversationController {
+let ConversationController = ConversationController_1 = class ConversationController {
     conversationService;
     messageService;
-    constructor(conversationService, messageService) {
+    omnichannelGateway;
+    logger = new common_1.Logger(ConversationController_1.name);
+    constructor(conversationService, messageService, omnichannelGateway) {
         this.conversationService = conversationService;
         this.messageService = messageService;
+        this.omnichannelGateway = omnichannelGateway;
     }
     async findAll(filter) {
         return this.conversationService.findAll(filter);
@@ -39,7 +44,18 @@ let ConversationController = class ConversationController {
         });
     }
     async sendMessage(id, dto, req) {
-        return this.messageService.sendMessage(id, dto, req.user?.id, req.user?.name);
+        const message = await this.messageService.sendMessage(id, dto, req.user?.id, req.user?.name);
+        // 소켓 브로드캐스트 — 다른 CRM 세션에 실시간 동기화
+        // try/catch로 감싸서 emit 실패가 HTTP 응답에 영향 주지 않도록 함
+        try {
+            const conversation = await this.conversationService.findOne(id);
+            this.omnichannelGateway.emitNewMessage(id, message);
+            this.omnichannelGateway.emitConversationUpdate(conversation);
+        }
+        catch (err) {
+            this.logger.warn(`Failed to broadcast message ${message.id}: ${err}`);
+        }
+        return message;
     }
     async resendMessage(id, messageId) {
         await this.conversationService.findOne(id);
@@ -170,11 +186,12 @@ __decorate([
     __metadata("design:paramtypes", [Number]),
     __metadata("design:returntype", Promise)
 ], ConversationController.prototype, "markAsRead", null);
-exports.ConversationController = ConversationController = __decorate([
+exports.ConversationController = ConversationController = ConversationController_1 = __decorate([
     (0, swagger_1.ApiTags)('Omnichannel - Conversations'),
     (0, swagger_1.ApiBearerAuth)(),
     (0, common_1.Controller)('omnichannel/conversations'),
     __metadata("design:paramtypes", [conversation_service_1.ConversationService,
-        message_service_1.MessageService])
+        message_service_1.MessageService,
+        omnichannel_gateway_1.OmnichannelGateway])
 ], ConversationController);
 //# sourceMappingURL=conversation.controller.js.map
