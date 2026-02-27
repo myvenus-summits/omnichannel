@@ -72,6 +72,7 @@ export class OmnichannelGateway
       status: conversation.status,
       lastMessageAt: conversation.lastMessageAt,
       lastMessagePreview: conversation.lastMessagePreview,
+      lastInboundAt: conversation.lastInboundAt,
       unreadCount: conversation.unreadCount,
     };
     
