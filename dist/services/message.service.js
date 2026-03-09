@@ -135,6 +135,7 @@ let MessageService = MessageService_1 = class MessageService {
             status: 'delivered',
             metadata: data.metadata ?? null,
             senderUserId: null,
+            createdAt: data.timestamp,
         });
         if (data.direction === 'inbound') {
             await this.conversationService.incrementUnreadCount(conversationId);
@@ -156,6 +157,8 @@ let MessageService = MessageService_1 = class MessageService {
         const credentials = await this.resolveCredentials(conversation.channelConfigId);
         const igMessages = await this.instagramAdapter.fetchConversationMessages(conversation.contactIdentifier, credentials);
         let synced = 0;
+        let newestSyncedTimestamp = null;
+        let newestSyncedPreview = null;
         for (const msg of igMessages) {
             const existing = await this.messageRepository.findByChannelMessageId(msg.channelMessageId);
             if (existing)
@@ -171,8 +174,22 @@ let MessageService = MessageService_1 = class MessageService {
                 status: 'delivered',
                 metadata: msg.metadata ?? null,
                 senderUserId: null,
+                createdAt: msg.timestamp,
             });
             synced++;
+            if (!newestSyncedTimestamp || msg.timestamp > newestSyncedTimestamp) {
+                newestSyncedTimestamp = msg.timestamp;
+                newestSyncedPreview = msg.contentText?.substring(0, 100) ?? '[Media]';
+            }
+        }
+        // Update conversation summary if synced messages are newer
+        if (newestSyncedTimestamp) {
+            const currentLastMessageAt = conversation.lastMessageAt
+                ? new Date(conversation.lastMessageAt)
+                : null;
+            if (!currentLastMessageAt || newestSyncedTimestamp > currentLastMessageAt) {
+                await this.conversationService.updateLastMessage(conversationId, newestSyncedPreview ?? '[Media]', newestSyncedTimestamp);
+            }
         }
         this.logger.log(`Synced ${synced} Instagram messages for conversation ${conversationId}`);
         return { synced };

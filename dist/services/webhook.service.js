@@ -220,6 +220,7 @@ let WebhookService = WebhookService_1 = class WebhookService {
             replyToPreview,
             status: event.message.direction === 'inbound' ? 'delivered' : 'sent',
             metadata: event.message.metadata ?? null,
+            createdAt: event.message.timestamp,
         });
         // Update conversation
         const newUnreadCount = event.message.direction === 'inbound'
