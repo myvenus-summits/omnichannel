@@ -86,6 +86,15 @@ export declare class InstagramAdapter implements ChannelAdapter {
      */
     private buildConversationId;
     /**
+     * Fetch messages from Instagram conversation by user ID (IGSID)
+     * Uses Conversations API to find the conversation, then fetches messages
+     */
+    fetchConversationMessages(userId: string, credentials?: AdapterCredentialsOverride): Promise<NormalizedMessage[]>;
+    /**
+     * Determine direction with explicit business account ID override
+     */
+    private determineDirectionByIdWithOverride;
+    /**
      * Determine message direction based on sender ID
      * Compares against configured Instagram Business Account ID
      */

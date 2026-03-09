@@ -38,6 +38,12 @@ export declare class MessageService {
         errorCode?: number;
         errorMessage?: string;
     }): Promise<void>;
+    /**
+     * Instagram 대화의 메시지를 Instagram API에서 가져와 누락된 메시지를 DB에 저장
+     */
+    syncInstagramMessages(conversationId: number): Promise<{
+        synced: number;
+    }>;
     resendMessage(messageId: number): Promise<IMessage>;
 }
 //# sourceMappingURL=message.service.d.ts.map

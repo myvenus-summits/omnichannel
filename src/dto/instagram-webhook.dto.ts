@@ -65,6 +65,10 @@ export class InstagramMessage {
   @IsOptional()
   is_echo?: boolean;
 
+  @ApiPropertyOptional({ description: 'App ID (present when sent via API)' })
+  @IsOptional()
+  app_id?: number;
+
   @ApiPropertyOptional({ description: 'Is unsupported' })
   @IsOptional()
   is_unsupported?: boolean;

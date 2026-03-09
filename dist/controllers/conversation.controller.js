@@ -61,6 +61,9 @@ let ConversationController = ConversationController_1 = class ConversationContro
         await this.conversationService.findOne(id);
         return this.messageService.resendMessage(messageId);
     }
+    async syncMessages(id) {
+        return this.messageService.syncInstagramMessages(id);
+    }
     async assign(id, dto) {
         return this.conversationService.assign(id, dto);
     }
@@ -140,6 +143,17 @@ __decorate([
     __metadata("design:paramtypes", [Number, Number]),
     __metadata("design:returntype", Promise)
 ], ConversationController.prototype, "resendMessage", null);
+__decorate([
+    (0, common_1.Post)(':id/sync-messages'),
+    (0, swagger_1.ApiOperation)({ summary: 'Instagram 메시지 동기화 (누락 메시지 backfill)' }),
+    (0, swagger_1.ApiParam)({ name: 'id', description: '대화 ID' }),
+    (0, swagger_1.ApiResponse)({ status: 201, description: '동기화 완료' }),
+    (0, swagger_1.ApiResponse)({ status: 400, description: 'Instagram 대화가 아님' }),
+    __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Number]),
+    __metadata("design:returntype", Promise)
+], ConversationController.prototype, "syncMessages", null);
 __decorate([
     (0, common_1.Patch)(':id/assign'),
     (0, swagger_1.ApiOperation)({ summary: '담당자 배정' }),

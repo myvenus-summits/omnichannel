@@ -57,6 +57,7 @@ class InstagramMessage {
     reply_to;
     is_deleted;
     is_echo;
+    app_id;
     is_unsupported;
 }
 exports.InstagramMessage = InstagramMessage;
@@ -97,6 +98,11 @@ __decorate([
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", Boolean)
 ], InstagramMessage.prototype, "is_echo", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({ description: 'App ID (present when sent via API)' }),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Number)
+], InstagramMessage.prototype, "app_id", void 0);
 __decorate([
     (0, swagger_1.ApiPropertyOptional)({ description: 'Is unsupported' }),
     (0, class_validator_1.IsOptional)(),

@@ -389,10 +389,16 @@ let InstagramAdapter = InstagramAdapter_1 = class InstagramAdapter {
      */
     parseMessagingEvent(event, entryId) {
         // Handle message event
-        if (event.message && !event.message.is_echo && !event.message.is_deleted) {
+        if (event.message && !event.message.is_deleted) {
+            // CRM API로 보낸 echo는 skip (sendMessage에서 이미 저장됨)
+            // app_id가 있으면 API 발송, 없으면 Instagram 앱에서 직접 발송
+            if (event.message.is_echo && event.message.app_id) {
+                return null;
+            }
             // Use configured business account ID if available, otherwise fall back to entry ID
             const businessAccountId = this.instagramBusinessAccountId || entryId;
-            const direction = event.sender.id === businessAccountId ? 'outbound' : 'inbound';
+            const direction = event.message.is_echo ? 'outbound' :
+                (event.sender.id === businessAccountId ? 'outbound' : 'inbound');
             const contentType = this.determineContentType(event.message);
             const mediaUrl = this.extractMediaUrl(event.message);
             const contactIdentifier = direction === 'inbound' ? event.sender.id : event.recipient.id;
@@ -411,6 +417,7 @@ let InstagramAdapter = InstagramAdapter_1 = class InstagramAdapter {
                     replyToExternalId: event.message.reply_to?.mid,
                     timestamp: new Date(event.timestamp),
                     metadata: {
+                        isEcho: !!event.message.is_echo,
                         isQuickReply: !!event.message.quick_reply,
                         quickReplyPayload: event.message.quick_reply?.payload,
                         instagramEntryId: entryId,
@@ -460,11 +467,6 @@ let InstagramAdapter = InstagramAdapter_1 = class InstagramAdapter {
                 },
             };
         }
-        // Skip echo messages — outbound messages are tracked when sent via API.
-        // Echo webhooks can create incorrect conversations with business account ID as contact.
-        if (event.message?.is_echo) {
-            return null;
-        }
         return null;
     }
     /**
@@ -498,6 +500,70 @@ let InstagramAdapter = InstagramAdapter_1 = class InstagramAdapter {
      */
     buildConversationId(contactIdentifier) {
         return `instagram:${contactIdentifier}`;
+    }
+    /**
+     * Fetch messages from Instagram conversation by user ID (IGSID)
+     * Uses Conversations API to find the conversation, then fetches messages
+     */
+    async fetchConversationMessages(userId, credentials) {
+        try {
+            const resolved = this.resolveCredentials(credentials);
+            if (!resolved.accessToken) {
+                throw new Error('Instagram access token not configured');
+            }
+            const igAccountId = resolved.instagramBusinessAccountId || resolved.pageId;
+            if (!igAccountId) {
+                throw new Error('Instagram Business Account ID not configured');
+            }
+            // 1. Find conversation by user ID
+            const convUrl = `${this.igBaseUrl}/${this.apiVersion}/${igAccountId}/conversations` +
+                `?user_id=${userId}&fields=messages{id,message,from,to,created_time}`;
+            const convResponse = await fetch(convUrl, {
+                headers: { Authorization: `Bearer ${resolved.accessToken}` },
+            });
+            if (!convResponse.ok) {
+                const errorText = await convResponse.text();
+                this.logger.error(`Instagram Conversations API error: ${convResponse.status} - ${errorText}`);
+                throw new Error(`Instagram Conversations API error: ${convResponse.status}`);
+            }
+            const convData = (await convResponse.json());
+            const messages = [];
+            for (const conversation of convData.data) {
+                if (conversation.messages?.data) {
+                    for (const msg of conversation.messages.data) {
+                        const direction = this.determineDirectionByIdWithOverride(msg.from.id, resolved.instagramBusinessAccountId);
+                        messages.push({
+                            channelMessageId: msg.id,
+                            direction,
+                            senderName: msg.from.username ?? msg.from.id,
+                            contentType: 'text',
+                            contentText: msg.message,
+                            timestamp: new Date(msg.created_time),
+                            metadata: {
+                                fromId: msg.from.id,
+                                toIds: msg.to.data.map((t) => t.id),
+                                ...(direction === 'outbound' ? { isEcho: true } : {}),
+                            },
+                        });
+                    }
+                }
+            }
+            this.logger.log(`Fetched ${messages.length} messages from Instagram for user ${userId}`);
+            return messages;
+        }
+        catch (error) {
+            this.logger.error('Failed to fetch Instagram conversation messages', error);
+            return [];
+        }
+    }
+    /**
+     * Determine direction with explicit business account ID override
+     */
+    determineDirectionByIdWithOverride(senderId, businessAccountId) {
+        const effectiveId = businessAccountId || this.instagramBusinessAccountId;
+        if (!effectiveId)
+            return 'inbound';
+        return senderId === effectiveId ? 'outbound' : 'inbound';
     }
     /**
      * Determine message direction based on sender ID
