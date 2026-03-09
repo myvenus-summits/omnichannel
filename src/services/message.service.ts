@@ -189,6 +189,7 @@ export class MessageService {
       status: 'delivered',
       metadata: data.metadata ?? null,
       senderUserId: null,
+      createdAt: data.timestamp,
     });
 
     if (data.direction === 'inbound') {
@@ -230,6 +231,8 @@ export class MessageService {
     );
 
     let synced = 0;
+    let newestSyncedTimestamp: Date | null = null;
+    let newestSyncedPreview: string | null = null;
 
     for (const msg of igMessages) {
       const existing = await this.messageRepository.findByChannelMessageId(
@@ -251,6 +254,26 @@ export class MessageService {
         createdAt: msg.timestamp,
       });
       synced++;
+
+      if (!newestSyncedTimestamp || msg.timestamp > newestSyncedTimestamp) {
+        newestSyncedTimestamp = msg.timestamp;
+        newestSyncedPreview = msg.contentText?.substring(0, 100) ?? '[Media]';
+      }
+    }
+
+    // Update conversation summary if synced messages are newer
+    if (newestSyncedTimestamp) {
+      const currentLastMessageAt = conversation.lastMessageAt
+        ? new Date(conversation.lastMessageAt)
+        : null;
+
+      if (!currentLastMessageAt || newestSyncedTimestamp > currentLastMessageAt) {
+        await this.conversationService.updateLastMessage(
+          conversationId,
+          newestSyncedPreview ?? '[Media]',
+          newestSyncedTimestamp,
+        );
+      }
     }
 
     this.logger.log(`Synced ${synced} Instagram messages for conversation ${conversationId}`);
