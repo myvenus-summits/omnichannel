@@ -171,6 +171,7 @@ let MessageService = MessageService_1 = class MessageService {
                 status: 'delivered',
                 metadata: msg.metadata ?? null,
                 senderUserId: null,
+                createdAt: msg.timestamp,
             });
             synced++;
         }
