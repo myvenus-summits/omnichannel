@@ -103,6 +103,15 @@ export class ConversationController {
     return this.messageService.resendMessage(messageId);
   }
 
+  @Post(':id/sync-messages')
+  @ApiOperation({ summary: 'Instagram 메시지 동기화 (누락 메시지 backfill)' })
+  @ApiParam({ name: 'id', description: '대화 ID' })
+  @ApiResponse({ status: 201, description: '동기화 완료' })
+  @ApiResponse({ status: 400, description: 'Instagram 대화가 아님' })
+  async syncMessages(@Param('id', ParseIntPipe) id: number) {
+    return this.messageService.syncInstagramMessages(id);
+  }
+
   @Patch(':id/assign')
   @ApiOperation({ summary: '담당자 배정' })
   @ApiParam({ name: 'id', description: '대화 ID' })

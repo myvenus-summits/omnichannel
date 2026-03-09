@@ -26,6 +26,7 @@ export declare class InstagramMessage {
     };
     is_deleted?: boolean;
     is_echo?: boolean;
+    app_id?: number;
     is_unsupported?: boolean;
 }
 export declare class InstagramDelivery {

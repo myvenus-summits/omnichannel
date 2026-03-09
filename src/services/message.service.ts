@@ -212,6 +212,50 @@ export class MessageService {
     await this.messageRepository.updateStatus(channelMessageId, status, errorMetadata);
   }
 
+  /**
+   * Instagram 대화의 메시지를 Instagram API에서 가져와 누락된 메시지를 DB에 저장
+   */
+  async syncInstagramMessages(conversationId: number): Promise<{ synced: number }> {
+    const conversation = await this.conversationService.findOne(conversationId);
+
+    if (conversation.channel !== 'instagram') {
+      throw new BadRequestException('Instagram 대화만 동기화할 수 있습니다');
+    }
+
+    const credentials = await this.resolveCredentials(conversation.channelConfigId);
+
+    const igMessages = await this.instagramAdapter.fetchConversationMessages(
+      conversation.contactIdentifier,
+      credentials,
+    );
+
+    let synced = 0;
+
+    for (const msg of igMessages) {
+      const existing = await this.messageRepository.findByChannelMessageId(
+        msg.channelMessageId,
+      );
+      if (existing) continue;
+
+      await this.create({
+        conversationId,
+        channelMessageId: msg.channelMessageId,
+        direction: msg.direction,
+        senderName: msg.senderName ?? null,
+        contentType: msg.contentType as IMessage['contentType'],
+        contentText: msg.contentText ?? null,
+        contentMediaUrl: msg.contentMediaUrl ?? null,
+        status: 'delivered',
+        metadata: msg.metadata ?? null,
+        senderUserId: null,
+      });
+      synced++;
+    }
+
+    this.logger.log(`Synced ${synced} Instagram messages for conversation ${conversationId}`);
+    return { synced };
+  }
+
   async resendMessage(messageId: number): Promise<IMessage> {
     const original = await this.findOne(messageId);
 
