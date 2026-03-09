@@ -40,6 +40,10 @@ interface InstagramConversationResponse {
         to: { data: Array<{ id: string; username?: string }> };
         created_time: string;
       }>;
+      paging?: {
+        cursors: { before: string; after: string };
+        next?: string;
+      };
     };
   }>;
   paging?: {
@@ -698,10 +702,10 @@ export class InstagramAdapter implements ChannelAdapter {
         throw new Error('Instagram Business Account ID not configured');
       }
 
-      // 1. Find conversation by user ID
+      // 1. Find conversation by user ID (limit 200 messages per page, default is only 25)
       const convUrl =
         `${this.igBaseUrl}/${this.apiVersion}/${igAccountId}/conversations` +
-        `?user_id=${userId}&fields=messages{id,message,from,to,created_time}`;
+        `?user_id=${userId}&fields=messages.limit(200){id,message,from,to,created_time}`;
 
       const convResponse = await fetch(convUrl, {
         headers: { Authorization: `Bearer ${resolved.accessToken}` },
@@ -715,32 +719,81 @@ export class InstagramAdapter implements ChannelAdapter {
 
       const convData = (await convResponse.json()) as InstagramConversationResponse;
       const messages: NormalizedMessage[] = [];
+      let truncated = false;
 
       for (const conversation of convData.data) {
-        if (conversation.messages?.data) {
-          for (const msg of conversation.messages.data) {
-            const direction = this.determineDirectionByIdWithOverride(
-              msg.from.id,
-              resolved.instagramBusinessAccountId,
-            );
-            messages.push({
-              channelMessageId: msg.id,
-              direction,
-              senderName: msg.from.username ?? msg.from.id,
-              contentType: 'text',
-              contentText: msg.message,
-              timestamp: new Date(msg.created_time),
-              metadata: {
-                fromId: msg.from.id,
-                toIds: msg.to.data.map((t) => t.id),
-                ...(direction === 'outbound' ? { isEcho: true } : {}),
-              },
-            });
+        if (!conversation.messages?.data) continue;
+
+        // Collect all message data including paginated results
+        const allMessageData = [...conversation.messages.data];
+
+        // Paginate through remaining messages (max 4 additional pages = ~1000 messages total)
+        let nextUrl = conversation.messages.paging?.next;
+        let pageCount = 0;
+        const maxPages = 4;
+
+        while (nextUrl && pageCount < maxPages) {
+          pageCount++;
+          this.logger.log(`Fetching messages page ${pageCount} for user ${userId}`);
+
+          const pageResponse = await fetch(nextUrl, {
+            headers: { Authorization: `Bearer ${resolved.accessToken}` },
+          });
+
+          if (!pageResponse.ok) {
+            this.logger.warn(`Failed to fetch messages page ${pageCount}: HTTP ${pageResponse.status}`);
+            truncated = true;
+            break;
           }
+
+          const pageData = (await pageResponse.json()) as {
+            data: Array<{
+              id: string;
+              message: string;
+              from: { id: string; username?: string };
+              to: { data: Array<{ id: string; username?: string }> };
+              created_time: string;
+            }>;
+            paging?: {
+              cursors: { before: string; after: string };
+              next?: string;
+            };
+          };
+
+          allMessageData.push(...pageData.data);
+          nextUrl = pageData.paging?.next;
+        }
+
+        // Convert all messages to normalized format
+        for (const msg of allMessageData) {
+          const timestamp = new Date(msg.created_time);
+          if (Number.isNaN(timestamp.getTime())) {
+            this.logger.warn(`Skipping message ${msg.id} with invalid timestamp: ${msg.created_time}`);
+            continue;
+          }
+
+          const direction = this.determineDirectionByIdWithOverride(
+            msg.from.id,
+            resolved.instagramBusinessAccountId,
+          );
+          messages.push({
+            channelMessageId: msg.id,
+            direction,
+            senderName: msg.from.username ?? msg.from.id,
+            contentType: 'text',
+            contentText: msg.message,
+            timestamp,
+            metadata: {
+              fromId: msg.from.id,
+              toIds: msg.to.data.map((t) => t.id),
+              ...(direction === 'outbound' ? { isEcho: true } : {}),
+            },
+          });
         }
       }
 
-      this.logger.log(`Fetched ${messages.length} messages from Instagram for user ${userId}`);
+      const status = truncated ? '(truncated due to API error)' : '';
+      this.logger.log(`Fetched ${messages.length} messages from Instagram for user ${userId} ${status}`);
       return messages;
     } catch (error) {
       this.logger.error('Failed to fetch Instagram conversation messages', error);
