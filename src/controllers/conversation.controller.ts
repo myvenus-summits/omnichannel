@@ -8,6 +8,7 @@ import {
   Body,
   Req,
   ParseIntPipe,
+  Logger,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -19,6 +20,7 @@ import {
 } from '@nestjs/swagger';
 import { ConversationService } from '../services/conversation.service';
 import { MessageService } from '../services/message.service';
+import { OmnichannelGateway } from '../gateways/omnichannel.gateway';
 import {
   ConversationFilterDto,
   AssignDto,
@@ -31,9 +33,12 @@ import {
 @ApiBearerAuth()
 @Controller('omnichannel/conversations')
 export class ConversationController {
+  private readonly logger = new Logger(ConversationController.name);
+
   constructor(
     private readonly conversationService: ConversationService,
     private readonly messageService: MessageService,
+    private readonly omnichannelGateway: OmnichannelGateway,
   ) {}
 
   @Get()
@@ -85,7 +90,19 @@ export class ConversationController {
     @Body() dto: CreateMessageDto,
     @Req() req: any,
   ) {
-    return this.messageService.sendMessage(id, dto, req.user?.id, req.user?.name);
+    const message = await this.messageService.sendMessage(id, dto, req.user?.id, req.user?.name);
+
+    // 소켓 브로드캐스트 — 다른 CRM 세션에 실시간 동기화
+    // try/catch로 감싸서 emit 실패가 HTTP 응답에 영향 주지 않도록 함
+    try {
+      const conversation = await this.conversationService.findOne(id);
+      this.omnichannelGateway.emitNewMessage(id, message);
+      this.omnichannelGateway.emitConversationUpdate(conversation);
+    } catch (err) {
+      this.logger.warn(`Failed to broadcast message ${message.id}: ${err}`);
+    }
+
+    return message;
   }
 
   @Post(':id/messages/:messageId/resend')

@@ -1,10 +1,13 @@
 import { ConversationService } from '../services/conversation.service';
 import { MessageService } from '../services/message.service';
+import { OmnichannelGateway } from '../gateways/omnichannel.gateway';
 import { ConversationFilterDto, AssignDto, UpdateTagsDto, UpdateStatusDto, CreateMessageDto } from '../dto';
 export declare class ConversationController {
     private readonly conversationService;
     private readonly messageService;
-    constructor(conversationService: ConversationService, messageService: MessageService);
+    private readonly omnichannelGateway;
+    private readonly logger;
+    constructor(conversationService: ConversationService, messageService: MessageService, omnichannelGateway: OmnichannelGateway);
     findAll(filter: ConversationFilterDto): Promise<import("..").PaginatedResult<import("..").IConversation>>;
     findOne(id: number): Promise<import("..").IConversation>;
     getMessages(id: number, limit?: string, before?: string): Promise<import("..").IMessage[]>;
