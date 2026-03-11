@@ -106,7 +106,6 @@ __decorate([
         example: '{"regionId":"indonesia"}',
     }),
     (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsString)(),
     (0, class_transformer_1.Transform)(({ value }) => {
         if (typeof value === 'string') {
             try {

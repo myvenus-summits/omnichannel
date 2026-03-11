@@ -81,7 +81,6 @@ export class ConversationFilterDto {
     example: '{"regionId":"indonesia"}',
   })
   @IsOptional()
-  @IsString()
   @Transform(({ value }: { value: unknown }) => {
     if (typeof value === 'string') {
       try { return JSON.parse(value); } catch { return {}; }
