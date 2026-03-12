@@ -56,14 +56,14 @@ let WebhookService = WebhookService_1 = class WebhookService {
             this.logger.log('✅ OmnichannelGateway successfully injected');
         }
     }
-    async handleTwilioWebhook(payload) {
+    async handleTwilioWebhook(payload, preResolvedConfig) {
         this.logger.log('Processing Twilio webhook');
         const event = this.whatsappAdapter.parseWebhookPayload(payload);
         if (!event) {
             this.logger.warn('Could not parse Twilio webhook payload');
             return;
         }
-        await this.processEvent(event, 'whatsapp');
+        await this.processEvent(event, 'whatsapp', preResolvedConfig);
     }
     async handleMetaWebhook(payload) {
         this.logger.log('Processing Meta webhook');
@@ -91,10 +91,10 @@ let WebhookService = WebhookService_1 = class WebhookService {
         }
         return null;
     }
-    async processEvent(event, channel) {
+    async processEvent(event, channel, preResolvedConfig) {
         switch (event.type) {
             case 'message':
-                await this.handleMessageEvent(event, channel);
+                await this.handleMessageEvent(event, channel, preResolvedConfig);
                 break;
             case 'status_update':
                 await this.handleStatusUpdate(event);
@@ -109,7 +109,7 @@ let WebhookService = WebhookService_1 = class WebhookService {
                 this.logger.warn(`Unknown event type: ${String(event.type)}`);
         }
     }
-    async handleMessageEvent(event, channel) {
+    async handleMessageEvent(event, channel, preResolvedConfig) {
         if (!event.message)
             return;
         // 메시지 중복 체크를 conversation 생성 전에 수행 (불필요한 conversation 생성 방지)
@@ -122,7 +122,13 @@ let WebhookService = WebhookService_1 = class WebhookService {
         let clinicId = null;
         let tenantContext = {};
         let channelConfigId = null;
-        if (this.webhookChannelResolver) {
+        if (preResolvedConfig) {
+            // 컨트롤러에서 서명 검증 시 이미 resolve된 config 사용 (중복 조회 방지)
+            clinicId = preResolvedConfig.clinicId;
+            tenantContext = preResolvedConfig.tenantContext ?? {};
+            channelConfigId = preResolvedConfig.channelConfigId;
+        }
+        else if (this.webhookChannelResolver) {
             try {
                 const resolverIdentifier = event.channelAccountId || event.contactIdentifier;
                 const resolved = await this.webhookChannelResolver(channel, resolverIdentifier);
@@ -234,78 +240,67 @@ let WebhookService = WebhookService_1 = class WebhookService {
         if (event.message.direction === 'inbound') {
             updateData.lastInboundAt = event.message.timestamp;
         }
-        const updatedConversation = await this.conversationRepository.update(conversation.id, updateData);
+        let updatedConversation = await this.conversationRepository.update(conversation.id, updateData);
         this.logger.log(`Message saved: ${event.message.channelMessageId} in conversation ${conversation.id}`);
-        // WebSocket으로 실시간 알림 전송
-        this.logger.log(`🔔 Emitting WebSocket events for conversation ${updatedConversation.id}`);
-        this.omnichannelGateway?.emitNewMessage(updatedConversation.id, message);
-        this.omnichannelGateway?.emitConversationUpdate(updatedConversation);
-        // Instagram: resolve username asynchronously (non-blocking)
+        // Instagram: resolve username BEFORE WebSocket emit so CRM gets the display name on the first event
         if (channel === 'instagram' && event.contactIdentifier) {
             const needsUsernameResolution = !updatedConversation.contactName || /^\d+$/.test(updatedConversation.contactName);
             if (needsUsernameResolution) {
-                this.resolveInstagramUsername(updatedConversation.id, event.contactIdentifier, resolvedCredentials);
+                try {
+                    this.logger.log(`Resolving Instagram username for: ${event.contactIdentifier}`);
+                    const profile = await this.instagramAdapter.fetchUserProfile(event.contactIdentifier, resolvedCredentials);
+                    if (profile) {
+                        const displayName = profile.username
+                            ? `@${profile.username}`
+                            : profile.name || null;
+                        if (displayName) {
+                            updatedConversation = await this.conversationRepository.update(updatedConversation.id, { contactName: displayName });
+                            this.logger.log(`Resolved Instagram username: ${displayName}`);
+                            // Fire-and-forget: save profile to contact_channel
+                            this.saveInstagramContactProfile(event.contactIdentifier, displayName, profile.profile_picture_url ?? null);
+                        }
+                    }
+                }
+                catch (error) {
+                    this.logger.warn(`Failed to resolve Instagram username for ${event.contactIdentifier}: ${error}`);
+                    // Graceful degradation: proceed with numeric ID
+                }
             }
         }
+        // WebSocket으로 실시간 알림 전송 (Instagram인 경우 resolved name이 포함됨)
+        this.logger.log(`🔔 Emitting WebSocket events for conversation ${updatedConversation.id}`);
+        this.omnichannelGateway?.emitNewMessage(updatedConversation.id, message);
+        this.omnichannelGateway?.emitConversationUpdate(updatedConversation);
     }
     /**
-     * Instagram 사용자 이름 비동기 해결 (fire-and-forget)
+     * Instagram 프로필을 contact_channel에 저장 (fire-and-forget)
      */
-    resolveInstagramUsername(conversationId, contactIdentifier, credentials) {
+    saveInstagramContactProfile(contactIdentifier, displayName, profilePictureUrl) {
+        if (!this.contactChannelRepository)
+            return;
         (async () => {
             try {
-                this.logger.log(`[Background] Resolving Instagram username for: ${contactIdentifier}`);
-                const profile = await this.instagramAdapter.fetchUserProfile(contactIdentifier, credentials);
-                if (!profile) {
-                    this.logger.warn(`[Background] Could not resolve Instagram username for ${contactIdentifier}`);
-                    return;
+                const existing = await this.contactChannelRepository.findByChannelIdentifier('instagram', contactIdentifier);
+                if (existing) {
+                    await this.contactChannelRepository.update(existing.id, {
+                        channelDisplayName: displayName,
+                        channelProfileUrl: profilePictureUrl ?? existing.channelProfileUrl,
+                    });
                 }
-                const displayName = profile.username
-                    ? `@${profile.username}`
-                    : profile.name || null;
-                if (!displayName) {
-                    this.logger.warn(`[Background] Could not resolve Instagram display name for ${contactIdentifier}`);
-                    return;
-                }
-                const resolvedName = displayName;
-                this.logger.log(`[Background] Resolved Instagram username: ${resolvedName}`);
-                // Update conversation with resolved name
-                const updatedConversation = await this.conversationRepository.update(conversationId, {
-                    contactName: resolvedName,
-                });
-                // Emit a second conversation:update with the resolved name
-                if (this.omnichannelGateway) {
-                    this.omnichannelGateway.emitConversationUpdate(updatedConversation);
-                }
-                // Save profile to contact_channel
-                if (this.contactChannelRepository) {
-                    try {
-                        const existing = await this.contactChannelRepository.findByChannelIdentifier('instagram', contactIdentifier);
-                        if (existing) {
-                            await this.contactChannelRepository.update(existing.id, {
-                                channelDisplayName: resolvedName,
-                                channelProfileUrl: profile.profile_picture_url ?? existing.channelProfileUrl,
-                            });
-                        }
-                        else {
-                            await this.contactChannelRepository.create({
-                                channel: 'instagram',
-                                channelIdentifier: contactIdentifier,
-                                channelDisplayName: resolvedName,
-                                channelProfileUrl: profile.profile_picture_url ?? null,
-                                contactId: null,
-                                metadata: null,
-                                lastContactedAt: new Date(),
-                            });
-                        }
-                    }
-                    catch (error) {
-                        this.logger.warn(`[Background] Failed to save Instagram profile for ${contactIdentifier}: ${error}`);
-                    }
+                else {
+                    await this.contactChannelRepository.create({
+                        channel: 'instagram',
+                        channelIdentifier: contactIdentifier,
+                        channelDisplayName: displayName,
+                        channelProfileUrl: profilePictureUrl,
+                        contactId: null,
+                        metadata: null,
+                        lastContactedAt: new Date(),
+                    });
                 }
             }
             catch (error) {
-                this.logger.warn(`[Background] Failed to resolve Instagram username for ${contactIdentifier}: ${error}`);
+                this.logger.warn(`[Background] Failed to save Instagram profile for ${contactIdentifier}: ${error}`);
             }
         })();
     }

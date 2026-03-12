@@ -3,7 +3,7 @@ import { InstagramAdapter } from '../adapters/instagram.adapter';
 import { OmnichannelGateway } from '../gateways/omnichannel.gateway';
 import { ConversationService } from './conversation.service';
 import { MessageService } from './message.service';
-import type { IConversationRepository, IMessageRepository, IContactChannelRepository } from '../interfaces';
+import type { IConversationRepository, IMessageRepository, IContactChannelRepository, ResolvedChannelConfig } from '../interfaces';
 import { type OmnichannelModuleOptions } from '../interfaces';
 import type { InstagramWebhookDto } from '../dto/instagram-webhook.dto';
 export declare class WebhookService {
@@ -21,16 +21,16 @@ export declare class WebhookService {
     private readonly metaWebhookVerifyToken;
     private readonly webhookChannelResolver;
     constructor(options: OmnichannelModuleOptions | undefined, conversationRepository: IConversationRepository, messageRepository: IMessageRepository, contactChannelRepository: IContactChannelRepository | undefined, whatsappAdapter: WhatsAppAdapter, instagramAdapter: InstagramAdapter, omnichannelGateway: OmnichannelGateway, conversationService: ConversationService, messageService: MessageService);
-    handleTwilioWebhook(payload: unknown): Promise<void>;
+    handleTwilioWebhook(payload: unknown, preResolvedConfig?: ResolvedChannelConfig | null): Promise<void>;
     handleMetaWebhook(payload: unknown): Promise<void>;
     handleInstagramWebhook(payload: InstagramWebhookDto): Promise<void>;
     verifyMetaWebhook(verifyToken: string, challenge: string): string | null;
     private processEvent;
     private handleMessageEvent;
     /**
-     * Instagram 사용자 이름 비동기 해결 (fire-and-forget)
+     * Instagram 프로필을 contact_channel에 저장 (fire-and-forget)
      */
-    private resolveInstagramUsername;
+    private saveInstagramContactProfile;
     private handleStatusUpdate;
     private handleReactionEvent;
     private handleConversationCreated;
