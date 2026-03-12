@@ -8,6 +8,7 @@ export declare class WebhookController {
     private readonly logger;
     private readonly appUrl;
     private readonly twilioAuthToken;
+    private readonly webhookChannelResolver;
     constructor(options: OmnichannelModuleOptions | undefined, webhookService: WebhookService);
     handleTwilio(req: Request, payload: TwilioWebhookDto): Promise<{
         success: boolean;
@@ -21,5 +22,6 @@ export declare class WebhookController {
     handleTwilioStatus(req: Request, payload: unknown): Promise<{
         success: boolean;
     }>;
+    private resolveAndValidateTwilioSignature;
 }
 //# sourceMappingURL=webhook.controller.d.ts.map

@@ -26,26 +26,17 @@ let WebhookController = WebhookController_1 = class WebhookController {
     logger = new common_1.Logger(WebhookController_1.name);
     appUrl;
     twilioAuthToken;
+    webhookChannelResolver;
     constructor(options, webhookService) {
         this.options = options;
         this.webhookService = webhookService;
         this.appUrl = options?.appUrl ?? '';
         this.twilioAuthToken = options?.twilio?.authToken ?? '';
+        this.webhookChannelResolver = options?.webhookChannelResolver ?? null;
     }
     async handleTwilio(req, payload) {
-        const twilioSignature = req.headers['x-twilio-signature'];
         const webhookUrl = `${this.appUrl}/webhooks/twilio`;
-        if (this.twilioAuthToken && twilioSignature) {
-            const isValid = (0, twilio_1.validateRequest)(this.twilioAuthToken, twilioSignature, webhookUrl, req.body);
-            if (!isValid) {
-                this.logger.warn('Invalid Twilio signature detected');
-                throw new common_1.UnauthorizedException('Invalid Twilio signature');
-            }
-        }
-        else if (process.env['NODE_ENV'] === 'production') {
-            this.logger.error('Missing Twilio signature or auth token in production');
-            throw new common_1.UnauthorizedException('Twilio signature verification required');
-        }
+        const resolvedConfig = await this.resolveAndValidateTwilioSignature(req, webhookUrl);
         // Log webhook format for debugging
         const webhookFormat = payload.EventType
             ? 'Conversations API'
@@ -54,7 +45,7 @@ let WebhookController = WebhookController_1 = class WebhookController {
                 : 'Unknown';
         this.logger.log(`Received Twilio webhook (${webhookFormat}): ${payload.EventType ?? payload.SmsMessageSid ?? payload.MessageSid ?? 'N/A'}`);
         try {
-            await this.webhookService.handleTwilioWebhook(payload);
+            await this.webhookService.handleTwilioWebhook(payload, resolvedConfig);
             return { success: true };
         }
         catch (error) {
@@ -85,27 +76,53 @@ let WebhookController = WebhookController_1 = class WebhookController {
         }
     }
     async handleTwilioStatus(req, payload) {
-        const twilioSignature = req.headers['x-twilio-signature'];
         const webhookUrl = `${this.appUrl}/webhooks/twilio/status`;
-        if (this.twilioAuthToken && twilioSignature) {
-            const isValid = (0, twilio_1.validateRequest)(this.twilioAuthToken, twilioSignature, webhookUrl, req.body);
-            if (!isValid) {
-                this.logger.warn('Invalid Twilio signature on status callback');
-                throw new common_1.UnauthorizedException('Invalid Twilio signature');
-            }
-        }
-        else if (process.env['NODE_ENV'] === 'production') {
-            throw new common_1.UnauthorizedException('Twilio signature verification required');
-        }
+        const resolvedConfig = await this.resolveAndValidateTwilioSignature(req, webhookUrl);
         this.logger.log('Received Twilio status callback');
         try {
-            await this.webhookService.handleTwilioWebhook(payload);
+            await this.webhookService.handleTwilioWebhook(payload, resolvedConfig);
             return { success: true };
         }
         catch (error) {
             this.logger.error('Failed to process Twilio status callback', error);
             return { success: false };
         }
+    }
+    async resolveAndValidateTwilioSignature(req, webhookUrl) {
+        const twilioSignature = req.headers['x-twilio-signature'];
+        const body = req.body;
+        let resolvedConfig = null;
+        let authToken = this.twilioAuthToken;
+        // 병원별 authToken 조회 시도
+        if (this.webhookChannelResolver) {
+            const identifiers = [body.To, body.From].filter(Boolean);
+            for (const id of identifiers) {
+                try {
+                    const resolved = await this.webhookChannelResolver('whatsapp', id);
+                    if (resolved?.twilio?.authToken) {
+                        authToken = resolved.twilio.authToken;
+                        resolvedConfig = resolved;
+                        break;
+                    }
+                }
+                catch (e) {
+                    this.logger.warn(`Failed to resolve channel for ${id}: ${e}`);
+                }
+            }
+        }
+        // 서명 검증
+        if (authToken && twilioSignature) {
+            const isValid = (0, twilio_1.validateRequest)(authToken, twilioSignature, webhookUrl, body);
+            if (!isValid) {
+                this.logger.warn('Invalid Twilio signature detected');
+                throw new common_1.UnauthorizedException('Invalid Twilio signature');
+            }
+        }
+        else if (process.env['NODE_ENV'] === 'production') {
+            this.logger.error('Missing Twilio signature or auth token in production');
+            throw new common_1.UnauthorizedException('Twilio signature verification required');
+        }
+        return resolvedConfig;
     }
 };
 exports.WebhookController = WebhookController;
