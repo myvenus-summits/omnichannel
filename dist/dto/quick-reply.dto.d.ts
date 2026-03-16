@@ -2,6 +2,8 @@ export declare class CreateQuickReplyDto {
     title: string;
     content: string;
     shortcut?: string;
+    clinicId?: number;
+    channelType?: string;
 }
 declare const UpdateQuickReplyDto_base: import("@nestjs/common").Type<Partial<CreateQuickReplyDto>>;
 export declare class UpdateQuickReplyDto extends UpdateQuickReplyDto_base {
@@ -10,6 +12,8 @@ export declare class UpdateQuickReplyDto extends UpdateQuickReplyDto_base {
 export declare class QuickReplyQueryDto {
     search?: string;
     activeOnly?: boolean;
+    clinicId?: number;
+    channelType?: string;
 }
 export {};
 //# sourceMappingURL=quick-reply.dto.d.ts.map

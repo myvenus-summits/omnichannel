@@ -102,6 +102,8 @@ export interface IQuickReplyRepository {
   findAll(query: {
     search?: string;
     activeOnly?: boolean;
+    clinicId?: number;
+    channelType?: string;
   }): Promise<IQuickReply[]>;
 
   findOne(id: number): Promise<IQuickReply | null>;

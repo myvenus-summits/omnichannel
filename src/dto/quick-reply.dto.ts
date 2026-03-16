@@ -3,10 +3,11 @@ import {
   IsString,
   IsOptional,
   IsBoolean,
+  IsNumber,
   MaxLength,
   MinLength,
 } from 'class-validator';
-import { Transform } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 
 export class CreateQuickReplyDto {
   @ApiProperty({ description: '템플릿 제목', example: '예약 확인' })
@@ -31,6 +32,18 @@ export class CreateQuickReplyDto {
   @IsString()
   @MaxLength(50)
   shortcut?: string;
+
+  @ApiPropertyOptional({ description: '병원 ID (null이면 공통)' })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  clinicId?: number;
+
+  @ApiPropertyOptional({ description: '채널 타입 (null이면 공통)', example: 'whatsapp' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(20)
+  channelType?: string;
 }
 
 export class UpdateQuickReplyDto extends PartialType(CreateQuickReplyDto) {
@@ -51,4 +64,15 @@ export class QuickReplyQueryDto {
   @Transform(({ value }) => value === 'true' || value === true)
   @IsBoolean()
   activeOnly?: boolean;
+
+  @ApiPropertyOptional({ description: '병원 ID 필터' })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  clinicId?: number;
+
+  @ApiPropertyOptional({ description: '채널 타입 필터', example: 'whatsapp' })
+  @IsOptional()
+  @IsString()
+  channelType?: string;
 }

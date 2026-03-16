@@ -17,6 +17,8 @@ class CreateQuickReplyDto {
     title;
     content;
     shortcut;
+    clinicId;
+    channelType;
 }
 exports.CreateQuickReplyDto = CreateQuickReplyDto;
 __decorate([
@@ -45,6 +47,20 @@ __decorate([
     (0, class_validator_1.MaxLength)(50),
     __metadata("design:type", String)
 ], CreateQuickReplyDto.prototype, "shortcut", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({ description: '병원 ID (null이면 공통)' }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_transformer_1.Type)(() => Number),
+    (0, class_validator_1.IsNumber)(),
+    __metadata("design:type", Number)
+], CreateQuickReplyDto.prototype, "clinicId", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({ description: '채널 타입 (null이면 공통)', example: 'whatsapp' }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.MaxLength)(20),
+    __metadata("design:type", String)
+], CreateQuickReplyDto.prototype, "channelType", void 0);
 class UpdateQuickReplyDto extends (0, swagger_1.PartialType)(CreateQuickReplyDto) {
     isActive;
 }
@@ -58,6 +74,8 @@ __decorate([
 class QuickReplyQueryDto {
     search;
     activeOnly;
+    clinicId;
+    channelType;
 }
 exports.QuickReplyQueryDto = QuickReplyQueryDto;
 __decorate([
@@ -73,4 +91,17 @@ __decorate([
     (0, class_validator_1.IsBoolean)(),
     __metadata("design:type", Boolean)
 ], QuickReplyQueryDto.prototype, "activeOnly", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({ description: '병원 ID 필터' }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_transformer_1.Type)(() => Number),
+    (0, class_validator_1.IsNumber)(),
+    __metadata("design:type", Number)
+], QuickReplyQueryDto.prototype, "clinicId", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({ description: '채널 타입 필터', example: 'whatsapp' }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], QuickReplyQueryDto.prototype, "channelType", void 0);
 //# sourceMappingURL=quick-reply.dto.js.map
