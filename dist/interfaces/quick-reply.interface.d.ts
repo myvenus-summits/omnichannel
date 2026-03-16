@@ -7,6 +7,8 @@ export interface IQuickReply {
     title: string;
     content: string;
     shortcut: string | null;
+    clinicId: number | null;
+    channelType: string | null;
     usageCount: number;
     isActive: boolean;
     createdAt: Date;

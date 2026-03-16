@@ -23,6 +23,8 @@ export class QuickReplyService {
     return this.quickReplyRepository.findAll({
       search: query.search,
       activeOnly: query.activeOnly !== false,
+      clinicId: query.clinicId,
+      channelType: query.channelType,
     });
   }
 
@@ -54,6 +56,8 @@ export class QuickReplyService {
       title: dto.title,
       content: dto.content,
       shortcut: dto.shortcut ?? null,
+      clinicId: dto.clinicId ?? null,
+      channelType: dto.channelType ?? null,
       usageCount: 0,
       isActive: true,
     });
