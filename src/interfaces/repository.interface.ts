@@ -48,7 +48,10 @@ export interface IConversationRepository {
   }): Promise<PaginatedResult<IConversation>>;
 
   findOne(id: number): Promise<IConversation | null>;
-  findByChannelConversationId(channelConversationId: string): Promise<IConversation | null>;
+  findByChannelConversationId(
+    channelConversationId: string,
+    channelConfigId?: number | null,
+  ): Promise<IConversation | null>;
   create(data: Partial<CreateConversationData>): Promise<IConversation>;
   update(id: number, data: UpdateConversationData): Promise<IConversation>;
   incrementUnreadCount(id: number): Promise<void>;

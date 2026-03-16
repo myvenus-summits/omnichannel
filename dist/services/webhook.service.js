@@ -143,7 +143,18 @@ let WebhookService = WebhookService_1 = class WebhookService {
             }
         }
         // Find or create conversation
-        let conversation = await this.conversationRepository.findByChannelConversationId(event.channelConversationId);
+        // 1차: channelConfigId와 함께 조회 (병원별 대화 격리)
+        let conversation = channelConfigId
+            ? await this.conversationRepository.findByChannelConversationId(event.channelConversationId, channelConfigId)
+            : null;
+        // 2차: 못 찾으면 channelConfigId 없이 조회 (backfill 대상만)
+        if (!conversation) {
+            const fallback = await this.conversationRepository.findByChannelConversationId(event.channelConversationId);
+            // channelConfigId가 없는 레거시 대화만 사용 (다른 클리닉 대화는 무시)
+            if (fallback && !fallback.channelConfigId) {
+                conversation = fallback;
+            }
+        }
         const isNewConversation = !conversation;
         // Resolve per-clinic credentials for API calls (e.g., fetchUserProfile)
         let resolvedCredentials;

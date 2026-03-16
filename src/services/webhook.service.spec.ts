@@ -4,7 +4,7 @@ import { InstagramAdapter } from '../adapters/instagram.adapter';
 import { OmnichannelGateway } from '../gateways/omnichannel.gateway';
 import { ConversationService } from './conversation.service';
 import { MessageService } from './message.service';
-import type { OmnichannelModuleOptions, IConversationRepository, IMessageRepository, IConversation, IMessage } from '../interfaces';
+import type { OmnichannelModuleOptions, IConversationRepository, IMessageRepository, IConversation, IMessage, ResolvedChannelConfig } from '../interfaces';
 
 // Mock repositories (implementing interfaces)
 const mockConversationRepository: jest.Mocked<IConversationRepository> = {
@@ -76,6 +76,7 @@ describe('WebhookService', () => {
       mockOptions,
       mockConversationRepository,
       mockMessageRepository,
+      undefined, // contactChannelRepository (optional)
       mockWhatsAppAdapter as unknown as WhatsAppAdapter,
       mockInstagramAdapter as unknown as InstagramAdapter,
       mockGateway as unknown as OmnichannelGateway,
@@ -502,12 +503,184 @@ describe('WebhookService', () => {
     });
   });
 
+  describe('multi-clinic conversation isolation', () => {
+    const phoneNumber = 'whatsapp:+821099998888';
+    const channelConversationId = phoneNumber;
+
+    const makeMessageEvent = () => ({
+      type: 'message' as const,
+      channelConversationId,
+      contactIdentifier: '+821099998888',
+      message: {
+        channelMessageId: `IM_${Date.now()}`,
+        direction: 'inbound' as const,
+        senderName: 'Customer',
+        contentType: 'text' as const,
+        contentText: 'Hello',
+        timestamp: new Date(),
+      },
+    });
+
+    const makeConversation = (overrides: Partial<IConversation>): IConversation => ({
+      id: 1,
+      channel: 'whatsapp',
+      channelConversationId,
+      contactIdentifier: '+821099998888',
+      contactName: null,
+      status: 'open',
+      tags: [],
+      assignedUserId: null,
+      unreadCount: 0,
+      lastMessageAt: null,
+      lastMessagePreview: null,
+      metadata: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      ...overrides,
+    });
+
+    const makeMessage = (conversationId: number): IMessage => ({
+      id: 1,
+      conversationId,
+      channelMessageId: `IM_${Date.now()}`,
+      direction: 'inbound',
+      senderName: 'Customer',
+      senderUserId: null,
+      contentType: 'text',
+      contentText: 'Hello',
+      contentMediaUrl: null,
+      status: 'delivered',
+      metadata: null,
+      createdAt: new Date(),
+    });
+
+    it('should create a new conversation when same phone exists in a different clinic', async () => {
+      // Clinic A의 대화가 이미 존재하는 상태에서 Clinic B로 메시지가 올 때
+      const clinicAConversation = makeConversation({
+        id: 10,
+        clinicId: 1,
+        channelConfigId: 100, // Clinic A의 channelConfig
+      });
+
+      const clinicBConfig: ResolvedChannelConfig = {
+        clinicId: 2,
+        channelConfigId: 200, // Clinic B
+      };
+
+      const event = makeMessageEvent();
+      mockWhatsAppAdapter.parseWebhookPayload.mockReturnValue(event);
+      mockMessageRepository.findByChannelMessageId.mockResolvedValue(null);
+
+      // 1차 조회 (channelConfigId=200): 없음
+      // 2차 조회 (channelConfigId 없이): Clinic A 대화 반환 (channelConfigId=100 있음 → 무시)
+      mockConversationRepository.findByChannelConversationId
+        .mockResolvedValueOnce(null)       // 1차: channelConfigId=200으로 조회 → 없음
+        .mockResolvedValueOnce(clinicAConversation); // 2차: channelConfigId 없이 → Clinic A 반환
+
+      const newClinicBConversation = makeConversation({
+        id: 20,
+        clinicId: 2,
+        channelConfigId: 200,
+      });
+      mockConversationRepository.create.mockResolvedValue(newClinicBConversation);
+      mockConversationRepository.update.mockResolvedValue({ ...newClinicBConversation, unreadCount: 1 });
+      mockMessageRepository.create.mockResolvedValue(makeMessage(20));
+
+      await service.handleTwilioWebhook({}, clinicBConfig);
+
+      // Clinic A 대화가 channelConfigId를 가지고 있으므로, 새 대화를 생성해야 함
+      expect(mockConversationRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          channelConfigId: 200,
+          clinicId: 2,
+        }),
+      );
+    });
+
+    it('should backfill legacy conversation without channelConfigId', async () => {
+      // channelConfigId가 없는 레거시 대화 → backfill 되어야 함
+      const legacyConversation = makeConversation({
+        id: 30,
+        clinicId: undefined,
+        channelConfigId: undefined, // 레거시: channelConfigId 없음
+      });
+
+      const resolvedConfig: ResolvedChannelConfig = {
+        clinicId: 1,
+        channelConfigId: 100,
+      };
+
+      const event = makeMessageEvent();
+      mockWhatsAppAdapter.parseWebhookPayload.mockReturnValue(event);
+      mockMessageRepository.findByChannelMessageId.mockResolvedValue(null);
+
+      // 1차: channelConfigId=100으로 조회 → 없음
+      // 2차: channelConfigId 없이 → 레거시 대화 반환 (channelConfigId=undefined → 사용 가능)
+      mockConversationRepository.findByChannelConversationId
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(legacyConversation);
+
+      mockConversationRepository.update.mockResolvedValue({
+        ...legacyConversation,
+        channelConfigId: 100,
+        clinicId: 1,
+        unreadCount: 1,
+      });
+      mockMessageRepository.create.mockResolvedValue(makeMessage(30));
+
+      await service.handleTwilioWebhook({}, resolvedConfig);
+
+      // 새 대화를 생성하지 않고 기존 레거시 대화를 backfill
+      expect(mockConversationRepository.create).not.toHaveBeenCalled();
+      expect(mockConversationRepository.update).toHaveBeenCalledWith(
+        30,
+        expect.objectContaining({
+          channelConfigId: 100,
+          clinicId: 1,
+        }),
+      );
+    });
+
+    it('should find existing conversation for the same clinic', async () => {
+      // 같은 클리닉에서 기존 대화 정상 조회
+      const existingConversation = makeConversation({
+        id: 40,
+        clinicId: 1,
+        channelConfigId: 100,
+      });
+
+      const resolvedConfig: ResolvedChannelConfig = {
+        clinicId: 1,
+        channelConfigId: 100,
+      };
+
+      const event = makeMessageEvent();
+      mockWhatsAppAdapter.parseWebhookPayload.mockReturnValue(event);
+      mockMessageRepository.findByChannelMessageId.mockResolvedValue(null);
+
+      // 1차: channelConfigId=100으로 조회 → 기존 대화 반환
+      mockConversationRepository.findByChannelConversationId
+        .mockResolvedValueOnce(existingConversation);
+
+      mockConversationRepository.update.mockResolvedValue({ ...existingConversation, unreadCount: 1 });
+      mockMessageRepository.create.mockResolvedValue(makeMessage(40));
+
+      await service.handleTwilioWebhook({}, resolvedConfig);
+
+      // 새 대화를 생성하지 않고 기존 대화 사용
+      expect(mockConversationRepository.create).not.toHaveBeenCalled();
+      // 2차 폴백 조회가 발생하지 않아야 함 (1차에서 찾았으므로)
+      expect(mockConversationRepository.findByChannelConversationId).toHaveBeenCalledTimes(1);
+    });
+  });
+
   describe('without gateway', () => {
     it('should handle message event without WebSocket gateway', async () => {
       const serviceNoGateway = new WebhookService(
         mockOptions,
         mockConversationRepository,
         mockMessageRepository,
+        undefined, // contactChannelRepository (optional)
         mockWhatsAppAdapter as unknown as WhatsAppAdapter,
         mockInstagramAdapter as unknown as InstagramAdapter,
         null,
