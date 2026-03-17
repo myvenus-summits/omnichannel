@@ -202,6 +202,12 @@ let MessageService = MessageService_1 = class MessageService {
         if (original.direction !== 'outbound') {
             throw new common_1.BadRequestException('Only outbound messages can be resent');
         }
+        if (original.contentType === 'template') {
+            throw new common_1.BadRequestException('Template messages cannot be resent. Please send a new template message.');
+        }
+        if (!original.contentText && !original.contentMediaUrl) {
+            throw new common_1.BadRequestException('Cannot resend message: no content text or media URL found');
+        }
         const conversation = await this.conversationService.findOne(original.conversationId);
         const credentials = await this.resolveCredentials(conversation.channelConfigId);
         const adapter = conversation.channel === 'instagram'

@@ -140,6 +140,13 @@ export class WhatsAppAdapter implements ChannelAdapter {
         }
       }
 
+      if (!messageOptions.body && !messageOptions.mediaUrl) {
+        return {
+          success: false,
+          error: 'Message must have text body or media URL',
+        };
+      }
+
       const message = await client.messages.create(messageOptions);
 
       this.logger.log(`Message sent via Messaging API: ${message.sid}`);
@@ -149,10 +156,15 @@ export class WhatsAppAdapter implements ChannelAdapter {
         channelMessageId: message.sid,
       };
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const errorCode = (error as any)?.code ?? (error as any)?.status;
+      if (errorCode) {
+        this.logger.error(`Twilio error code: ${errorCode}`);
+      }
       this.logger.error('Failed to send WhatsApp message via Messaging API', error);
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: errorMessage,
       };
     }
   }

@@ -290,6 +290,18 @@ export class MessageService {
       throw new BadRequestException('Only outbound messages can be resent');
     }
 
+    if (original.contentType === 'template') {
+      throw new BadRequestException(
+        'Template messages cannot be resent. Please send a new template message.',
+      );
+    }
+
+    if (!original.contentText && !original.contentMediaUrl) {
+      throw new BadRequestException(
+        'Cannot resend message: no content text or media URL found',
+      );
+    }
+
     const conversation = await this.conversationService.findOne(original.conversationId);
     const credentials = await this.resolveCredentials(conversation.channelConfigId);
 
