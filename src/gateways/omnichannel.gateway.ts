@@ -40,6 +40,8 @@ export class OmnichannelGateway
       conversationId,
       message: {
         id: message.id,
+        conversationId,
+        channelMessageId: message.channelMessageId,
         direction: message.direction,
         senderName: message.senderName,
         contentType: message.contentType,
