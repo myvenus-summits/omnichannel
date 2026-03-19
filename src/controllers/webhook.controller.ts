@@ -56,7 +56,7 @@ export class WebhookController {
   @ApiResponse({ status: 401, description: 'Invalid Twilio signature' })
   async handleTwilio(@Req() req: Request, @Body() payload: TwilioWebhookDto) {
     const webhookUrl = `${this.appUrl}/webhooks/twilio`;
-    const resolvedConfig = await this.resolveAndValidateTwilioSignature(req, webhookUrl);
+    const resolvedConfig = await this.resolveAndValidateTwilioSignature(req, webhookUrl, 'inbound');
 
     // Log webhook format for debugging
     const webhookFormat = payload.EventType
@@ -121,7 +121,7 @@ export class WebhookController {
   @ApiExcludeEndpoint()
   async handleTwilioStatus(@Req() req: Request, @Body() payload: unknown) {
     const webhookUrl = `${this.appUrl}/webhooks/twilio/status`;
-    const resolvedConfig = await this.resolveAndValidateTwilioSignature(req, webhookUrl);
+    const resolvedConfig = await this.resolveAndValidateTwilioSignature(req, webhookUrl, 'status');
 
     this.logger.log('Received Twilio status callback');
 
@@ -137,6 +137,7 @@ export class WebhookController {
   private async resolveAndValidateTwilioSignature(
     req: Request,
     webhookUrl: string,
+    webhookType: 'inbound' | 'status' = 'inbound',
   ): Promise<ResolvedChannelConfig | null> {
     const twilioSignature = req.headers['x-twilio-signature'] as string;
     const body = req.body as Record<string, string>;
@@ -145,7 +146,11 @@ export class WebhookController {
 
     // 병원별 authToken 조회 시도
     if (this.webhookChannelResolver) {
-      const identifiers = [body.To, body.From].filter(Boolean);
+      // Status callback: From = 비즈니스 번호 → 먼저 시도
+      // Inbound message: To = 비즈니스 번호 → 먼저 시도
+      const identifiers = webhookType === 'status'
+        ? [body.From, body.To].filter(Boolean)
+        : [body.To, body.From].filter(Boolean);
       for (const id of identifiers) {
         try {
           const resolved = await this.webhookChannelResolver('whatsapp', id);
