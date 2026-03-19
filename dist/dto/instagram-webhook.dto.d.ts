@@ -42,6 +42,9 @@ export declare class InstagramReaction {
     reaction?: string;
     emoji?: string;
 }
+export declare class InstagramOptin {
+    type: string;
+}
 export declare class InstagramMessagingEvent {
     sender: InstagramSender;
     recipient: InstagramRecipient;
@@ -50,6 +53,7 @@ export declare class InstagramMessagingEvent {
     delivery?: InstagramDelivery;
     read?: InstagramRead;
     reaction?: InstagramReaction;
+    optin?: InstagramOptin;
 }
 export declare class InstagramWebhookEntry {
     id: string;

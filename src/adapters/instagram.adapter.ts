@@ -625,6 +625,12 @@ export class InstagramAdapter implements ChannelAdapter {
       };
     }
 
+    // Handle optin event — server middleware handles processing, package only logs
+    if (event.optin) {
+      this.logger.log(`Instagram optin event: type=${event.optin.type}, sender=${event.sender.id}`);
+      return null;
+    }
+
     // Handle reaction event
     if (event.reaction) {
       const contactIdentifier = event.sender.id;

@@ -9,7 +9,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.InstagramWebhookDto = exports.InstagramWebhookEntry = exports.InstagramMessagingEvent = exports.InstagramReaction = exports.InstagramRead = exports.InstagramDelivery = exports.InstagramMessage = exports.InstagramMessageAttachment = exports.InstagramRecipient = exports.InstagramSender = void 0;
+exports.InstagramWebhookDto = exports.InstagramWebhookEntry = exports.InstagramMessagingEvent = exports.InstagramOptin = exports.InstagramReaction = exports.InstagramRead = exports.InstagramDelivery = exports.InstagramMessage = exports.InstagramMessageAttachment = exports.InstagramRecipient = exports.InstagramSender = void 0;
 const swagger_1 = require("@nestjs/swagger");
 const class_validator_1 = require("class-validator");
 const class_transformer_1 = require("class-transformer");
@@ -159,6 +159,15 @@ __decorate([
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], InstagramReaction.prototype, "emoji", void 0);
+class InstagramOptin {
+    type;
+}
+exports.InstagramOptin = InstagramOptin;
+__decorate([
+    (0, swagger_1.ApiProperty)({ description: 'Optin type (e.g. follow)' }),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], InstagramOptin.prototype, "type", void 0);
 class InstagramMessagingEvent {
     sender;
     recipient;
@@ -167,6 +176,7 @@ class InstagramMessagingEvent {
     delivery;
     read;
     reaction;
+    optin;
 }
 exports.InstagramMessagingEvent = InstagramMessagingEvent;
 __decorate([
@@ -213,6 +223,13 @@ __decorate([
     (0, class_transformer_1.Type)(() => InstagramReaction),
     __metadata("design:type", InstagramReaction)
 ], InstagramMessagingEvent.prototype, "reaction", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({ description: 'Optin event (e.g. user followed)' }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.ValidateNested)(),
+    (0, class_transformer_1.Type)(() => InstagramOptin),
+    __metadata("design:type", InstagramOptin)
+], InstagramMessagingEvent.prototype, "optin", void 0);
 class InstagramWebhookEntry {
     id;
     time;

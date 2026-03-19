@@ -40,6 +40,24 @@ export interface IConversation {
    */
   contactProfileUrl?: string | null;
 
+  /**
+   * 채널 설정 표시명 (clinic_channel_config에서 JOIN)
+   * @since 1.1.0
+   */
+  channelConfigDisplayName?: string | null;
+
+  /**
+   * 채널 설정 지역 (clinic_channel_config에서 JOIN)
+   * @since 1.1.0
+   */
+  channelConfigRegion?: string | null;
+
+  /**
+   * 마지막 메시지 방향 (inbound/outbound)
+   * @since 1.1.0
+   */
+  lastMessageDirection?: string | null;
+
   createdAt: Date;
   updatedAt: Date;
 }

@@ -108,6 +108,12 @@ export class InstagramReaction {
   emoji?: string;
 }
 
+export class InstagramOptin {
+  @ApiProperty({ description: 'Optin type (e.g. follow)' })
+  @IsString()
+  type!: string;
+}
+
 export class InstagramMessagingEvent {
   @ApiProperty({ description: 'Sender information' })
   @ValidateNested()
@@ -145,6 +151,12 @@ export class InstagramMessagingEvent {
   @ValidateNested()
   @Type(() => InstagramReaction)
   reaction?: InstagramReaction;
+
+  @ApiPropertyOptional({ description: 'Optin event (e.g. user followed)' })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => InstagramOptin)
+  optin?: InstagramOptin;
 }
 
 export class InstagramWebhookEntry {

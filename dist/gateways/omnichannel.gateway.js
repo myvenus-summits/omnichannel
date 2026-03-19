@@ -62,6 +62,12 @@ let OmnichannelGateway = OmnichannelGateway_1 = class OmnichannelGateway {
             lastMessagePreview: conversation.lastMessagePreview,
             lastInboundAt: conversation.lastInboundAt,
             unreadCount: conversation.unreadCount,
+            clinicId: conversation.clinicId ?? null,
+            assignedUserId: conversation.assignedUserId ?? null,
+            channelConfigId: conversation.channelConfigId ?? null,
+            channelConfigDisplayName: conversation.channelConfigDisplayName ?? null,
+            channelConfigRegion: conversation.channelConfigRegion ?? null,
+            lastMessageDirection: conversation.lastMessageDirection ?? null,
         };
         this.logger.log(`📤 Emitting conversation:update: ${JSON.stringify(payload)}`);
         this.server.emit('conversation:update', payload);
