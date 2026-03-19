@@ -227,11 +227,13 @@ export class WhatsAppAdapter implements ChannelAdapter {
       const toWhatsapp = to.startsWith('whatsapp:') ? to : `whatsapp:${to}`;
       const fromWhatsapp = `whatsapp:${whatsappNumber}`;
 
+      const hasVariables = Object.keys(variables).length > 0;
+
       const message = await client.messages.create({
         from: fromWhatsapp,
         to: toWhatsapp,
         contentSid: templateId,
-        contentVariables: JSON.stringify(variables),
+        ...(hasVariables && { contentVariables: JSON.stringify(variables) }),
         ...(this.appUrl && { statusCallback: `${this.appUrl}/webhooks/twilio/status` }),
       });
 
@@ -242,10 +244,15 @@ export class WhatsAppAdapter implements ChannelAdapter {
         channelMessageId: message.sid,
       };
     } catch (error) {
-      this.logger.error('Failed to send WhatsApp template message', error);
+      const twilioCode = (error as any)?.code;
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      this.logger.error(
+        `Failed to send WhatsApp template message [contentSid=${templateId}, variables=${JSON.stringify(variables)}, twilioCode=${twilioCode}]`,
+        error,
+      );
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: twilioCode ? `[${twilioCode}] ${errorMessage}` : errorMessage,
       };
     }
   }
