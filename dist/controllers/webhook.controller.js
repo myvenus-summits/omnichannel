@@ -36,7 +36,7 @@ let WebhookController = WebhookController_1 = class WebhookController {
     }
     async handleTwilio(req, payload) {
         const webhookUrl = `${this.appUrl}/webhooks/twilio`;
-        const resolvedConfig = await this.resolveAndValidateTwilioSignature(req, webhookUrl);
+        const resolvedConfig = await this.resolveAndValidateTwilioSignature(req, webhookUrl, 'inbound');
         // Log webhook format for debugging
         const webhookFormat = payload.EventType
             ? 'Conversations API'
@@ -77,7 +77,7 @@ let WebhookController = WebhookController_1 = class WebhookController {
     }
     async handleTwilioStatus(req, payload) {
         const webhookUrl = `${this.appUrl}/webhooks/twilio/status`;
-        const resolvedConfig = await this.resolveAndValidateTwilioSignature(req, webhookUrl);
+        const resolvedConfig = await this.resolveAndValidateTwilioSignature(req, webhookUrl, 'status');
         this.logger.log('Received Twilio status callback');
         try {
             await this.webhookService.handleTwilioWebhook(payload, resolvedConfig);
@@ -88,14 +88,18 @@ let WebhookController = WebhookController_1 = class WebhookController {
             return { success: false };
         }
     }
-    async resolveAndValidateTwilioSignature(req, webhookUrl) {
+    async resolveAndValidateTwilioSignature(req, webhookUrl, webhookType = 'inbound') {
         const twilioSignature = req.headers['x-twilio-signature'];
         const body = req.body;
         let resolvedConfig = null;
         let authToken = this.twilioAuthToken;
         // 병원별 authToken 조회 시도
         if (this.webhookChannelResolver) {
-            const identifiers = [body.To, body.From].filter(Boolean);
+            // Status callback: From = 비즈니스 번호 → 먼저 시도
+            // Inbound message: To = 비즈니스 번호 → 먼저 시도
+            const identifiers = webhookType === 'status'
+                ? [body.From, body.To].filter(Boolean)
+                : [body.To, body.From].filter(Boolean);
             for (const id of identifiers) {
                 try {
                     const resolved = await this.webhookChannelResolver('whatsapp', id);
