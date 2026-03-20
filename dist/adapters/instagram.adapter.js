@@ -76,9 +76,7 @@ let InstagramAdapter = InstagramAdapter_1 = class InstagramAdapter {
             const requestBody = {
                 recipient: { id: to },
                 message: messagePayload,
-                ...(options?.messagingType === 'RESPONSE'
-                    ? { messaging_type: 'RESPONSE' }
-                    : { messaging_type: 'MESSAGE_TAG', tag: 'HUMAN_AGENT' }),
+                ...(options?.messagingType ? { messaging_type: options.messagingType } : {}),
             };
             const response = await fetch(url, {
                 method: 'POST',
