@@ -131,15 +131,7 @@ export class InstagramAdapter implements ChannelAdapter {
         tag: 'HUMAN_AGENT',
       };
 
-      // reply_to는 유효한 Instagram mid가 있을 때만 추가
-      const hasReplyTo =
-        content.replyToExternalId &&
-        !content.replyToExternalId.startsWith('local-');
-      if (hasReplyTo) {
-        requestBody.reply_to = { mid: content.replyToExternalId };
-      }
-
-      let response = await fetch(url, {
+      const response = await fetch(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -148,26 +140,7 @@ export class InstagramAdapter implements ChannelAdapter {
         body: JSON.stringify(requestBody),
       });
 
-      let result = (await response.json()) as InstagramApiResponse;
-
-      // reply_to가 실패하면 reply 컨텍스트 제거 후 재시도
-      if ((!response.ok || result.error) && hasReplyTo) {
-        this.logger.warn(
-          `Instagram reply_to failed (mid=${content.replyToExternalId}): ${result.error?.message}. Retrying without reply context.`,
-        );
-        delete requestBody.reply_to;
-
-        response = await fetch(url, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${resolved.accessToken}`,
-          },
-          body: JSON.stringify(requestBody),
-        });
-
-        result = (await response.json()) as InstagramApiResponse;
-      }
+      const result = (await response.json()) as InstagramApiResponse;
 
       if (!response.ok || result.error) {
         this.logger.error('Instagram API error', result.error);
