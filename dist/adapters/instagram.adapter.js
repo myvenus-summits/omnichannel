@@ -60,7 +60,7 @@ let InstagramAdapter = InstagramAdapter_1 = class InstagramAdapter {
      * Send a message via Instagram Messaging API (using Facebook Graph API)
      * https://developers.facebook.com/docs/instagram-platform/instagram-api-with-instagram-login/messaging-api
      */
-    async sendMessage(to, content, credentials) {
+    async sendMessage(to, content, credentials, options) {
         try {
             const resolved = this.resolveCredentials(credentials);
             if (!resolved.accessToken) {
@@ -76,8 +76,9 @@ let InstagramAdapter = InstagramAdapter_1 = class InstagramAdapter {
             const requestBody = {
                 recipient: { id: to },
                 message: messagePayload,
-                // messaging_type: 'MESSAGE_TAG',
-                // tag: 'HUMAN_AGENT',
+                ...(options?.messagingType === 'RESPONSE'
+                    ? { messaging_type: 'RESPONSE' }
+                    : { messaging_type: 'MESSAGE_TAG', tag: 'HUMAN_AGENT' }),
             };
             const response = await fetch(url, {
                 method: 'POST',

@@ -21,7 +21,9 @@ export declare class InstagramAdapter implements ChannelAdapter {
      * Send a message via Instagram Messaging API (using Facebook Graph API)
      * https://developers.facebook.com/docs/instagram-platform/instagram-api-with-instagram-login/messaging-api
      */
-    sendMessage(to: string, content: MessageContent, credentials?: AdapterCredentialsOverride): Promise<SendMessageResult>;
+    sendMessage(to: string, content: MessageContent, credentials?: AdapterCredentialsOverride, options?: {
+        messagingType?: 'RESPONSE' | 'MESSAGE_TAG';
+    }): Promise<SendMessageResult>;
     /**
      * Send a template message (Instagram generic template)
      * Note: Instagram has limited template support compared to Messenger
