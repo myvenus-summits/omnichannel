@@ -127,8 +127,8 @@ export class InstagramAdapter implements ChannelAdapter {
       const requestBody: Record<string, unknown> = {
         recipient: { id: to },
         message: messagePayload,
-        messaging_type: 'MESSAGE_TAG',
-        tag: 'HUMAN_AGENT',
+        // messaging_type: 'MESSAGE_TAG',
+        // tag: 'HUMAN_AGENT',
       };
 
       const response = await fetch(url, {
