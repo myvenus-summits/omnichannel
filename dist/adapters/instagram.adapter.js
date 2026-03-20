@@ -76,6 +76,8 @@ let InstagramAdapter = InstagramAdapter_1 = class InstagramAdapter {
             const requestBody = {
                 recipient: { id: to },
                 message: messagePayload,
+                messaging_type: 'MESSAGE_TAG',
+                tag: 'HUMAN_AGENT',
             };
             // reply_to는 유효한 Instagram mid가 있을 때만 추가
             const hasReplyTo = content.replyToExternalId &&
