@@ -40,6 +40,12 @@ class TwilioWebhookDto {
     ButtonPayload;
     ReferralNumMedia;
     ApiVersion;
+    // ===== Messaging API media & reply fields (indexed for whitelist) =====
+    MediaUrl0;
+    MediaContentType0;
+    OriginalRepliedMessageSid;
+    ErrorCode;
+    ErrorMessage;
 }
 exports.TwilioWebhookDto = TwilioWebhookDto;
 __decorate([
@@ -174,6 +180,36 @@ __decorate([
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], TwilioWebhookDto.prototype, "ApiVersion", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({ description: 'Media URL (Messaging API - first attachment)' }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], TwilioWebhookDto.prototype, "MediaUrl0", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({ description: 'Media Content Type (Messaging API - first attachment)' }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], TwilioWebhookDto.prototype, "MediaContentType0", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({ description: 'Original replied message SID (WhatsApp reply)' }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], TwilioWebhookDto.prototype, "OriginalRepliedMessageSid", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({ description: 'Error code (Messaging API)' }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], TwilioWebhookDto.prototype, "ErrorCode", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({ description: 'Error message (Messaging API)' }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], TwilioWebhookDto.prototype, "ErrorMessage", void 0);
 /**
  * Meta Webhook Verification Query
  */

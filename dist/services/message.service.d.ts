@@ -39,7 +39,13 @@ export declare class MessageService {
         errorMessage?: string;
     }): Promise<void>;
     /**
-     * Instagram 대화의 메시지를 Instagram API에서 가져와 누락된 메시지를 DB에 저장
+     * 대화 메시지를 채널 API에서 가져와 누락된 메시지를 DB에 저장 (Instagram/WhatsApp)
+     */
+    syncMessages(conversationId: number): Promise<{
+        synced: number;
+    }>;
+    /**
+     * @deprecated syncMessages()를 사용하세요
      */
     syncInstagramMessages(conversationId: number): Promise<{
         synced: number;

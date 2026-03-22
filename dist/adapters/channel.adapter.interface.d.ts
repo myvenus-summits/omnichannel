@@ -39,11 +39,12 @@ export interface ChannelAdapter {
      * 대화 이력 조회 (채널 API에서)
      * @param conversationId 채널 대화 ID
      * @param options 조회 옵션
+     * @param credentials 동적 credentials override (멀티테넌트)
      */
     fetchMessages(conversationId: string, options?: {
         limit?: number;
         before?: string;
-    }): Promise<NormalizedMessage[]>;
+    }, credentials?: AdapterCredentialsOverride): Promise<NormalizedMessage[]>;
     /**
      * 접근 토큰 발급 (SDK용, 선택적)
      * @param identity 사용자 식별자

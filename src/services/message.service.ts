@@ -214,27 +214,38 @@ export class MessageService {
   }
 
   /**
-   * Instagram 대화의 메시지를 Instagram API에서 가져와 누락된 메시지를 DB에 저장
+   * 대화 메시지를 채널 API에서 가져와 누락된 메시지를 DB에 저장 (Instagram/WhatsApp)
    */
-  async syncInstagramMessages(conversationId: number): Promise<{ synced: number }> {
+  async syncMessages(conversationId: number): Promise<{ synced: number }> {
     const conversation = await this.conversationService.findOne(conversationId);
+    const { channel } = conversation;
 
-    if (conversation.channel !== 'instagram') {
-      throw new BadRequestException('Instagram 대화만 동기화할 수 있습니다');
+    if (channel !== 'instagram' && channel !== 'whatsapp') {
+      throw new BadRequestException('Instagram 또는 WhatsApp 대화만 동기화할 수 있습니다');
     }
 
     const credentials = await this.resolveCredentials(conversation.channelConfigId);
 
-    const igMessages = await this.instagramAdapter.fetchConversationMessages(
-      conversation.contactIdentifier,
-      credentials,
-    );
+    let channelMessages: import('../types').NormalizedMessage[];
+
+    if (channel === 'instagram') {
+      channelMessages = await this.instagramAdapter.fetchConversationMessages(
+        conversation.contactIdentifier,
+        credentials,
+      );
+    } else {
+      channelMessages = await this.whatsappAdapter.fetchMessages(
+        conversation.contactIdentifier,
+        { limit: 200 },
+        credentials,
+      );
+    }
 
     let synced = 0;
     let newestSyncedTimestamp: Date | null = null;
     let newestSyncedPreview: string | null = null;
 
-    for (const msg of igMessages) {
+    for (const msg of channelMessages) {
       const existing = await this.messageRepository.findByChannelMessageId(
         msg.channelMessageId,
       );
@@ -276,8 +287,15 @@ export class MessageService {
       }
     }
 
-    this.logger.log(`Synced ${synced} Instagram messages for conversation ${conversationId}`);
+    this.logger.log(`Synced ${synced} ${channel} messages for conversation ${conversationId}`);
     return { synced };
+  }
+
+  /**
+   * @deprecated syncMessages()를 사용하세요
+   */
+  async syncInstagramMessages(conversationId: number): Promise<{ synced: number }> {
+    return this.syncMessages(conversationId);
   }
 
   async resendMessage(messageId: number): Promise<IMessage> {

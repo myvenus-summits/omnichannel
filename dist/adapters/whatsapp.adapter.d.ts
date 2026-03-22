@@ -45,7 +45,12 @@ export declare class WhatsAppAdapter implements ChannelAdapter {
     fetchMessages(conversationId: string, options?: {
         limit?: number;
         before?: string;
-    }): Promise<NormalizedMessage[]>;
+    }, credentials?: AdapterCredentialsOverride): Promise<NormalizedMessage[]>;
+    /**
+     * Messaging API를 통한 메시지 조회 (WhatsApp Sandbox / Business API)
+     * inbound + outbound 양방향 메시지를 조회해서 시간순으로 정렬
+     */
+    private fetchMessagesViaMessagingApi;
     generateAccessToken(identity: string): Promise<string>;
     private mapMediaType;
     private mapTwilioStatus;

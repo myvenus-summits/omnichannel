@@ -274,7 +274,6 @@ let WhatsAppAdapter = WhatsAppAdapter_1 = class WhatsAppAdapter {
         const to = twilioPayload.To ?? '';
         // Check if this is a status callback (has SmsStatus but minimal content)
         if (twilioPayload.SmsStatus && !twilioPayload.Body && !twilioPayload.NumMedia) {
-            const rawPayload = twilioPayload;
             return {
                 type: 'status_update',
                 channelConversationId: from, // Use From as conversation identifier
@@ -282,15 +281,14 @@ let WhatsAppAdapter = WhatsAppAdapter_1 = class WhatsAppAdapter {
                 status: {
                     messageId: messageSid ?? '',
                     status: this.mapMessagingApiStatus(twilioPayload.SmsStatus),
-                    errorCode: rawPayload['ErrorCode'] ? parseInt(rawPayload['ErrorCode'], 10) : undefined,
-                    errorMessage: rawPayload['ErrorMessage'] ?? undefined,
+                    errorCode: twilioPayload.ErrorCode ? parseInt(twilioPayload.ErrorCode, 10) : undefined,
+                    errorMessage: twilioPayload.ErrorMessage ?? undefined,
                 },
             };
         }
         // Check if this is a reaction (ButtonPayload with emoji, no Body)
-        const rawPayloadForReaction = twilioPayload;
-        const buttonPayload = rawPayloadForReaction['ButtonPayload'];
-        const originalMessageSid = rawPayloadForReaction['OriginalRepliedMessageSid'];
+        const buttonPayload = twilioPayload.ButtonPayload;
+        const originalMessageSid = twilioPayload.OriginalRepliedMessageSid;
         if (buttonPayload && !twilioPayload.Body && originalMessageSid) {
             const conversationId = from;
             return {
@@ -321,9 +319,8 @@ let WhatsAppAdapter = WhatsAppAdapter_1 = class WhatsAppAdapter {
         let mediaUrl;
         if (numMedia > 0) {
             // Twilio sends MediaUrl0, MediaContentType0, etc. for each attachment
-            const rawPayload = twilioPayload;
-            const mediaContentType = rawPayload['MediaContentType0'];
-            mediaUrl = rawPayload['MediaUrl0'];
+            const mediaContentType = twilioPayload.MediaContentType0;
+            mediaUrl = twilioPayload.MediaUrl0;
             if (mediaContentType) {
                 contentType = this.mapMediaType(mediaContentType);
             }
@@ -332,8 +329,7 @@ let WhatsAppAdapter = WhatsAppAdapter_1 = class WhatsAppAdapter {
         const senderName = twilioPayload.ProfileName ?? from;
         this.logger.log(`Parsed Messaging API webhook: ${messageSid} from ${from} (${senderName})`);
         // Extract reply context from Twilio webhook (OriginalRepliedMessageSid)
-        const rawPayloadForReply = twilioPayload;
-        const replyToExternalId = rawPayloadForReply['OriginalRepliedMessageSid'] ?? undefined;
+        const replyToExternalId = twilioPayload.OriginalRepliedMessageSid ?? undefined;
         return {
             type: 'message',
             channelConversationId: conversationId,
@@ -359,12 +355,22 @@ let WhatsAppAdapter = WhatsAppAdapter_1 = class WhatsAppAdapter {
             },
         };
     }
-    async fetchMessages(conversationId, options) {
+    async fetchMessages(conversationId, options, credentials) {
+        // Normalize: plain E164 ('+8210...') → 'whatsapp:+8210...'
+        const normalizedId = conversationId.startsWith('+')
+            ? `whatsapp:${conversationId}`
+            : conversationId;
+        // Messaging API: 'whatsapp:+'로 시작하면 Messaging API 사용
+        if (normalizedId.startsWith('whatsapp:+')) {
+            return this.fetchMessagesViaMessagingApi(normalizedId, options, credentials);
+        }
+        // Conversations API: 'CH'로 시작 (기존 방식)
         try {
-            if (!this.client) {
+            const { client } = this.resolveTwilioClient(credentials);
+            if (!client) {
                 throw new Error('Twilio client not initialized');
             }
-            const messages = await this.client.conversations.v1
+            const messages = await client.conversations.v1
                 .conversations(conversationId)
                 .messages.list({
                 limit: options?.limit ?? 50,
@@ -386,6 +392,68 @@ let WhatsAppAdapter = WhatsAppAdapter_1 = class WhatsAppAdapter {
         }
         catch (error) {
             this.logger.error('Failed to fetch messages from Twilio', error);
+            return [];
+        }
+    }
+    /**
+     * Messaging API를 통한 메시지 조회 (WhatsApp Sandbox / Business API)
+     * inbound + outbound 양방향 메시지를 조회해서 시간순으로 정렬
+     */
+    async fetchMessagesViaMessagingApi(customerNumber, options, credentials) {
+        try {
+            const { client, whatsappNumber } = this.resolveTwilioClient(credentials);
+            if (!client) {
+                throw new Error('Twilio client not initialized');
+            }
+            const businessNumber = `whatsapp:+${whatsappNumber.replace(/^\+/, '')}`;
+            const limit = options?.limit ?? 100;
+            // 양방향 메시지 동시 조회
+            const [inboundMessages, outboundMessages] = await Promise.all([
+                client.messages.list({ from: customerNumber, to: businessNumber, limit }),
+                client.messages.list({ from: businessNumber, to: customerNumber, limit }),
+            ]);
+            // 두 결과 merge 후 시간순 정렬
+            const allMessages = [...inboundMessages, ...outboundMessages].sort((a, b) => new Date(a.dateSent ?? a.dateCreated).getTime() - new Date(b.dateSent ?? b.dateCreated).getTime());
+            const normalized = [];
+            for (const msg of allMessages) {
+                const direction = msg.from === customerNumber ? 'inbound' : 'outbound';
+                let contentType = 'text';
+                let mediaUrl;
+                // 미디어 첨부파일 조회
+                const numMedia = parseInt(msg.numMedia ?? '0', 10);
+                if (numMedia > 0) {
+                    try {
+                        const mediaList = await client.messages(msg.sid).media.list({ limit: 1 });
+                        if (mediaList.length > 0) {
+                            const media = mediaList[0];
+                            mediaUrl = `https://api.twilio.com/2010-04-01/Accounts/${media.accountSid}/Messages/${msg.sid}/Media/${media.sid}`;
+                            contentType = this.mapMediaType(media.contentType);
+                        }
+                    }
+                    catch (mediaError) {
+                        this.logger.warn(`Failed to fetch media for message ${msg.sid}`, mediaError);
+                    }
+                }
+                normalized.push({
+                    channelMessageId: msg.sid,
+                    direction,
+                    senderName: direction === 'inbound' ? customerNumber : businessNumber,
+                    contentType,
+                    contentText: msg.body ?? undefined,
+                    contentMediaUrl: mediaUrl,
+                    timestamp: new Date(msg.dateSent ?? msg.dateCreated),
+                    metadata: {
+                        accountSid: msg.accountSid,
+                        numMedia,
+                        status: msg.status,
+                    },
+                });
+            }
+            this.logger.log(`Fetched ${normalized.length} messages via Messaging API for ${customerNumber}`);
+            return normalized;
+        }
+        catch (error) {
+            this.logger.error('Failed to fetch messages via Messaging API', error);
             return [];
         }
     }

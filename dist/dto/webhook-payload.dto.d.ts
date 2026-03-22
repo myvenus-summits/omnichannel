@@ -25,6 +25,11 @@ export declare class TwilioWebhookDto {
     ButtonPayload?: string;
     ReferralNumMedia?: string;
     ApiVersion?: string;
+    MediaUrl0?: string;
+    MediaContentType0?: string;
+    OriginalRepliedMessageSid?: string;
+    ErrorCode?: string;
+    ErrorMessage?: string;
 }
 /**
  * Meta Webhook Verification Query

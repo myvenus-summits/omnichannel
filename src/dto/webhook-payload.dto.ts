@@ -117,6 +117,33 @@ export class TwilioWebhookDto {
   @IsOptional()
   @IsString()
   ApiVersion?: string;
+
+  // ===== Messaging API media & reply fields (indexed for whitelist) =====
+
+  @ApiPropertyOptional({ description: 'Media URL (Messaging API - first attachment)' })
+  @IsOptional()
+  @IsString()
+  MediaUrl0?: string;
+
+  @ApiPropertyOptional({ description: 'Media Content Type (Messaging API - first attachment)' })
+  @IsOptional()
+  @IsString()
+  MediaContentType0?: string;
+
+  @ApiPropertyOptional({ description: 'Original replied message SID (WhatsApp reply)' })
+  @IsOptional()
+  @IsString()
+  OriginalRepliedMessageSid?: string;
+
+  @ApiPropertyOptional({ description: 'Error code (Messaging API)' })
+  @IsOptional()
+  @IsString()
+  ErrorCode?: string;
+
+  @ApiPropertyOptional({ description: 'Error message (Messaging API)' })
+  @IsOptional()
+  @IsString()
+  ErrorMessage?: string;
 }
 
 /**
