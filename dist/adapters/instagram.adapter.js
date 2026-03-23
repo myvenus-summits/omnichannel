@@ -397,9 +397,33 @@ let InstagramAdapter = InstagramAdapter_1 = class InstagramAdapter {
             const businessAccountId = this.instagramBusinessAccountId || entryId;
             const direction = event.message.is_echo ? 'outbound' :
                 (event.sender.id === businessAccountId ? 'outbound' : 'inbound');
+            const contactIdentifier = direction === 'inbound' ? event.sender.id : event.recipient.id;
+            // 지원되지 않는 메시지 유형 (전화번호 카드, 연락처 공유 등)
+            if (event.message.is_unsupported) {
+                return {
+                    type: 'message',
+                    channelConversationId: this.buildConversationId(contactIdentifier),
+                    contactIdentifier,
+                    channelAccountId: entryId,
+                    message: {
+                        channelMessageId: event.message.mid,
+                        direction,
+                        senderName: event.sender.id,
+                        contentType: 'text',
+                        contentText: '[지원되지 않는 메시지 유형입니다]',
+                        contentMediaUrl: undefined,
+                        replyToExternalId: event.message.reply_to?.mid,
+                        timestamp: new Date(event.timestamp),
+                        metadata: {
+                            isUnsupported: true,
+                            isEcho: !!event.message.is_echo,
+                            instagramEntryId: entryId,
+                        },
+                    },
+                };
+            }
             const contentType = this.determineContentType(event.message);
             const mediaUrl = this.extractMediaUrl(event.message);
-            const contactIdentifier = direction === 'inbound' ? event.sender.id : event.recipient.id;
             return {
                 type: 'message',
                 channelConversationId: this.buildConversationId(contactIdentifier),
