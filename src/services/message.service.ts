@@ -12,6 +12,45 @@ import type { AdapterCredentialsOverride } from '../adapters/channel.adapter.int
 import { ConversationService } from './conversation.service';
 import type { MessageDirection, MessageStatus, SendMessageResult } from '../types';
 
+const CHANNEL_MESSAGE_LIMITS: Record<string, number> = {
+  whatsapp: 1024,
+  instagram: 1000,
+};
+const DEFAULT_MESSAGE_LIMIT = 1000;
+
+/**
+ * 긴 텍스트를 최대 길이 이하의 청크로 분할 (줄바꿈 기준 우선 분할)
+ */
+function splitTextIntoChunks(text: string, maxLength: number): string[] {
+  if (text.length <= maxLength) return [text];
+
+  const chunks: string[] = [];
+  let remaining = text;
+
+  while (remaining.length > 0) {
+    if (remaining.length <= maxLength) {
+      chunks.push(remaining);
+      break;
+    }
+
+    // 줄바꿈 기준으로 분할 시도
+    let splitIndex = remaining.lastIndexOf('\n', maxLength);
+    if (splitIndex <= 0) {
+      // 줄바꿈이 없으면 공백 기준으로 분할
+      splitIndex = remaining.lastIndexOf(' ', maxLength);
+    }
+    if (splitIndex <= 0) {
+      // 공백도 없으면 강제 분할
+      splitIndex = maxLength;
+    }
+
+    chunks.push(remaining.substring(0, splitIndex));
+    remaining = remaining.substring(splitIndex).replace(/^\n/, '');
+  }
+
+  return chunks;
+}
+
 @Injectable()
 export class MessageService {
   private readonly logger = new Logger(MessageService.name);
@@ -97,7 +136,7 @@ export class MessageService {
       }
     }
 
-    let result: SendMessageResult;
+    let result!: SendMessageResult;
     const adapter = conversation.channel === 'instagram'
       ? this.instagramAdapter
       : this.whatsappAdapter;
@@ -116,16 +155,46 @@ export class MessageService {
           : dto.contentType === 'image'
             ? 'image'
             : 'file';
-      result = await adapter.sendMessage(
-        conversation.contactIdentifier,
-        {
-          type: messageType,
-          text: dto.contentText,
-          mediaUrl: dto.contentMediaUrl,
-          replyToExternalId,
-        },
-        credentials,
-      );
+
+      // 채널별 글자수 제한
+      const maxLength = CHANNEL_MESSAGE_LIMITS[conversation.channel] ?? DEFAULT_MESSAGE_LIMIT;
+
+      // 긴 텍스트 메시지를 청크로 분할하여 전송
+      if (messageType === 'text' && dto.contentText && dto.contentText.length > maxLength) {
+        const chunks = splitTextIntoChunks(dto.contentText, maxLength);
+        this.logger.log(
+          `Splitting long message (${dto.contentText.length} chars) into ${chunks.length} chunks`,
+        );
+
+        for (let i = 0; i < chunks.length; i++) {
+          result = await adapter.sendMessage(
+            conversation.contactIdentifier,
+            {
+              type: messageType,
+              text: chunks[i],
+              mediaUrl: undefined,
+              // reply context는 첫 번째 청크에만 적용
+              replyToExternalId: i === 0 ? replyToExternalId : undefined,
+            },
+            credentials,
+          );
+
+          if (!result.success) {
+            throw new Error(`Failed to send message chunk ${i + 1}/${chunks.length}: ${result.error}`);
+          }
+        }
+      } else {
+        result = await adapter.sendMessage(
+          conversation.contactIdentifier,
+          {
+            type: messageType,
+            text: dto.contentText,
+            mediaUrl: dto.contentMediaUrl,
+            replyToExternalId,
+          },
+          credentials,
+        );
+      }
     }
 
     if (!result.success) {
