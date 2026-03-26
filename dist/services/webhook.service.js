@@ -35,6 +35,7 @@ let WebhookService = WebhookService_1 = class WebhookService {
     appUrl;
     metaWebhookVerifyToken;
     webhookChannelResolver;
+    mediaUrlTransformer;
     constructor(options, conversationRepository, messageRepository, contactChannelRepository, whatsappAdapter, instagramAdapter, omnichannelGateway, conversationService, messageService) {
         this.options = options;
         this.conversationRepository = conversationRepository;
@@ -48,6 +49,7 @@ let WebhookService = WebhookService_1 = class WebhookService {
         this.appUrl = options?.appUrl ?? '';
         this.metaWebhookVerifyToken = options?.meta?.webhookVerifyToken ?? '';
         this.webhookChannelResolver = options?.webhookChannelResolver ?? null;
+        this.mediaUrlTransformer = options?.mediaUrlTransformer ?? null;
         // Gateway 주입 확인 로그
         if (!this.omnichannelGateway) {
             this.logger.error('⚠️ OmnichannelGateway was not injected! Real-time updates will NOT work.');
@@ -224,6 +226,24 @@ let WebhookService = WebhookService_1 = class WebhookService {
                 replyToPreview = (replyTarget.contentText ?? '').substring(0, 100) || null;
             }
         }
+        // Transform media URL (e.g., Twilio → S3)
+        let mediaUrl = event.message.contentMediaUrl ?? null;
+        if (mediaUrl && this.mediaUrlTransformer) {
+            // preResolvedConfig 우선, 없으면 resolver에서 resolve한 정보로 구성
+            const effectiveConfig = preResolvedConfig
+                ?? (channelConfigId && clinicId
+                    ? { channelConfigId, clinicId, tenantContext, ...resolvedCredentials }
+                    : null);
+            if (effectiveConfig) {
+                try {
+                    mediaUrl = await this.mediaUrlTransformer(mediaUrl, event.message.contentType ?? 'image', effectiveConfig);
+                }
+                catch (error) {
+                    this.logger.warn(`Media URL transform failed, storing null: ${error}`);
+                    mediaUrl = null;
+                }
+            }
+        }
         const message = await this.messageRepository.create({
             conversationId: conversation.id,
             channelMessageId: event.message.channelMessageId,
@@ -232,7 +252,7 @@ let WebhookService = WebhookService_1 = class WebhookService {
             senderUserId: null,
             contentType: event.message.contentType,
             contentText: event.message.contentText ?? null,
-            contentMediaUrl: event.message.contentMediaUrl ?? null,
+            contentMediaUrl: mediaUrl,
             replyToMessageId,
             replyToPreview,
             status: event.message.direction === 'inbound' ? 'delivered' : 'sent',

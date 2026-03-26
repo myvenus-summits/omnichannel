@@ -142,6 +142,13 @@ export interface OmnichannelModuleOptions {
      * Implement IStorageAdapter (e.g., S3StorageAdapter)
      */
     storageAdapter?: IStorageAdapter;
+    /**
+     * 수신 미디어 URL을 변환하는 훅 (예: Twilio URL → S3 업로드)
+     * @param url - 원본 미디어 URL
+     * @param contentType - 미디어 타입 (image, video, file)
+     * @param config - 채널 설정 (twilio credentials 포함)
+     */
+    mediaUrlTransformer?: (url: string, contentType: string, config: ResolvedChannelConfig) => Promise<string>;
 }
 /**
  * 비동기 옵션 팩토리

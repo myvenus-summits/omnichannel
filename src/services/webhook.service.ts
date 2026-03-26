@@ -21,6 +21,7 @@ export class WebhookService {
   private readonly appUrl: string;
   private readonly metaWebhookVerifyToken: string;
   private readonly webhookChannelResolver: import('../interfaces').WebhookChannelResolver | null;
+  private readonly mediaUrlTransformer: import('../interfaces').OmnichannelModuleOptions['mediaUrlTransformer'] | null;
 
   constructor(
     @Optional()
@@ -42,6 +43,7 @@ export class WebhookService {
     this.appUrl = options?.appUrl ?? '';
     this.metaWebhookVerifyToken = options?.meta?.webhookVerifyToken ?? '';
     this.webhookChannelResolver = options?.webhookChannelResolver ?? null;
+    this.mediaUrlTransformer = options?.mediaUrlTransformer ?? null;
     
     // Gateway 주입 확인 로그
     if (!this.omnichannelGateway) {
@@ -261,6 +263,29 @@ export class WebhookService {
       }
     }
 
+    // Transform media URL (e.g., Twilio → S3)
+    let mediaUrl = event.message.contentMediaUrl ?? null;
+    if (mediaUrl && this.mediaUrlTransformer) {
+      // preResolvedConfig 우선, 없으면 resolver에서 resolve한 정보로 구성
+      const effectiveConfig: ResolvedChannelConfig | null = preResolvedConfig
+        ?? (channelConfigId && clinicId
+          ? { channelConfigId, clinicId, tenantContext, ...resolvedCredentials }
+          : null);
+
+      if (effectiveConfig) {
+        try {
+          mediaUrl = await this.mediaUrlTransformer(
+            mediaUrl,
+            event.message.contentType ?? 'image',
+            effectiveConfig,
+          );
+        } catch (error) {
+          this.logger.warn(`Media URL transform failed, storing null: ${error}`);
+          mediaUrl = null;
+        }
+      }
+    }
+
     const message = await this.messageRepository.create({
       conversationId: conversation.id,
       channelMessageId: event.message.channelMessageId,
@@ -269,7 +294,7 @@ export class WebhookService {
       senderUserId: null,
       contentType: event.message.contentType,
       contentText: event.message.contentText ?? null,
-      contentMediaUrl: event.message.contentMediaUrl ?? null,
+      contentMediaUrl: mediaUrl,
       replyToMessageId,
       replyToPreview,
       status: event.message.direction === 'inbound' ? 'delivered' : 'sent',

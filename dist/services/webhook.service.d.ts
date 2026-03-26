@@ -20,6 +20,7 @@ export declare class WebhookService {
     private readonly appUrl;
     private readonly metaWebhookVerifyToken;
     private readonly webhookChannelResolver;
+    private readonly mediaUrlTransformer;
     constructor(options: OmnichannelModuleOptions | undefined, conversationRepository: IConversationRepository, messageRepository: IMessageRepository, contactChannelRepository: IContactChannelRepository | undefined, whatsappAdapter: WhatsAppAdapter, instagramAdapter: InstagramAdapter, omnichannelGateway: OmnichannelGateway, conversationService: ConversationService, messageService: MessageService);
     handleTwilioWebhook(payload: unknown, preResolvedConfig?: ResolvedChannelConfig | null): Promise<void>;
     handleMetaWebhook(payload: unknown): Promise<void>;
