@@ -68,18 +68,13 @@ export class ConversationService {
   async assignIfUnassigned(id: number, userId: number): Promise<IConversation> {
     await this.findOne(id); // Ensure exists
 
-    if (this.conversationRepository.assignIfUnassigned) {
-      return this.conversationRepository.assignIfUnassigned(id, userId);
+    if (!this.conversationRepository.assignIfUnassigned) {
+      throw new Error(
+        'Conversation repository must implement assignIfUnassigned for atomic assignment',
+      );
     }
 
-    const conversation = await this.findOne(id);
-    if (conversation.assignedUserId) {
-      return conversation;
-    }
-
-    return this.conversationRepository.update(id, {
-      assignedUserId: userId,
-    });
+    return this.conversationRepository.assignIfUnassigned(id, userId);
   }
 
   async updateTags(id: number, dto: UpdateTagsDto): Promise<IConversation> {

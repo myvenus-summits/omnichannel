@@ -142,6 +142,51 @@ describe('MessageService auto assignment via host policy', () => {
     expect(mockConversationService.assignIfUnassigned).not.toHaveBeenCalled();
   });
 
+  it('returns the sent message when the resolver throws after send succeeds', async () => {
+    resolveAutoAssigneeOnFirstReply.mockRejectedValue(new Error('resolver failed'));
+
+    const result = await service.sendMessage(
+      1,
+      {
+        contentType: 'text',
+        contentText: '관리자 답장',
+      },
+      42,
+      'Alice',
+      'admin',
+    );
+
+    expect(result).toEqual(savedMessage);
+    expect(mockWhatsAppAdapter.sendMessage).toHaveBeenCalledTimes(1);
+    expect(mockMessageRepository.create).toHaveBeenCalledTimes(1);
+    expect(mockConversationService.updateLastMessage).toHaveBeenCalledTimes(1);
+    expect(mockConversationService.assignIfUnassigned).not.toHaveBeenCalled();
+  });
+
+  it('returns the sent message when assignIfUnassigned throws after send succeeds', async () => {
+    resolveAutoAssigneeOnFirstReply.mockResolvedValue(42);
+    mockConversationService.assignIfUnassigned.mockRejectedValue(
+      new Error('assignment failed'),
+    );
+
+    const result = await service.sendMessage(
+      1,
+      {
+        contentType: 'text',
+        contentText: '관리자 답장',
+      },
+      42,
+      'Alice',
+      'admin',
+    );
+
+    expect(result).toEqual(savedMessage);
+    expect(mockWhatsAppAdapter.sendMessage).toHaveBeenCalledTimes(1);
+    expect(mockMessageRepository.create).toHaveBeenCalledTimes(1);
+    expect(mockConversationService.updateLastMessage).toHaveBeenCalledTimes(1);
+    expect(mockConversationService.assignIfUnassigned).toHaveBeenCalledWith(1, 42);
+  });
+
   it('does not call the resolver when the conversation is already assigned', async () => {
     mockConversationService.findOne.mockResolvedValue({
       ...baseConversation,

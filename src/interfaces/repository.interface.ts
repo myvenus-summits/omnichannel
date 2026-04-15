@@ -54,7 +54,7 @@ export interface IConversationRepository {
   ): Promise<IConversation | null>;
   create(data: Partial<CreateConversationData>): Promise<IConversation>;
   update(id: number, data: UpdateConversationData): Promise<IConversation>;
-  assignIfUnassigned?(id: number, userId: number): Promise<IConversation>;
+  assignIfUnassigned(id: number, userId: number): Promise<IConversation>;
   incrementUnreadCount(id: number): Promise<void>;
   updateLastMessage(id: number, preview: string, timestamp: Date): Promise<void>;
   linkCustomer?(id: number, customerId: number): Promise<void>;

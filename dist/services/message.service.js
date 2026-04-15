@@ -181,11 +181,16 @@ let MessageService = MessageService_1 = class MessageService {
             metadata: null,
         });
         await this.conversationService.updateLastMessage(conversationId, dto.contentText?.substring(0, 100) ?? '[Media]', new Date());
-        const assigneeId = conversation.assignedUserId == null
-            ? await this.resolveAutoAssigneeOnFirstReply(conversation, senderUserId, senderName, senderRole)
-            : null;
-        if (assigneeId != null) {
-            await this.conversationService.assignIfUnassigned(conversationId, assigneeId);
+        if (conversation.assignedUserId == null) {
+            try {
+                const assigneeId = await this.resolveAutoAssigneeOnFirstReply(conversation, senderUserId, senderName, senderRole);
+                if (assigneeId != null) {
+                    await this.conversationService.assignIfUnassigned(conversationId, assigneeId);
+                }
+            }
+            catch (error) {
+                this.logger.warn(`Post-send auto-assignment failed for conversationId=${conversationId}`, error);
+            }
         }
         return message;
     }

@@ -241,21 +241,27 @@ export class MessageService {
       new Date(),
     );
 
-    const assigneeId =
-      conversation.assignedUserId == null
-        ? await this.resolveAutoAssigneeOnFirstReply(
-            conversation,
-            senderUserId,
-            senderName,
-            senderRole,
-          )
-        : null;
+    if (conversation.assignedUserId == null) {
+      try {
+        const assigneeId = await this.resolveAutoAssigneeOnFirstReply(
+          conversation,
+          senderUserId,
+          senderName,
+          senderRole,
+        );
 
-    if (assigneeId != null) {
-      await this.conversationService.assignIfUnassigned(
-        conversationId,
-        assigneeId,
-      );
+        if (assigneeId != null) {
+          await this.conversationService.assignIfUnassigned(
+            conversationId,
+            assigneeId,
+          );
+        }
+      } catch (error) {
+        this.logger.warn(
+          `Post-send auto-assignment failed for conversationId=${conversationId}`,
+          error,
+        );
+      }
     }
 
     return message;
