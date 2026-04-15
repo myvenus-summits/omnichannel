@@ -1,7 +1,12 @@
 import { MessageService } from './message.service';
-import type { IMessageRepository, IMessage, IConversation } from '../interfaces';
+import type {
+  IMessageRepository,
+  IMessage,
+  IConversation,
+  OmnichannelModuleOptions,
+} from '../interfaces';
 
-describe('MessageService auto assignment on first CS reply', () => {
+describe('MessageService auto assignment via host policy', () => {
   const mockMessageRepository: jest.Mocked<IMessageRepository> = {
     findByConversation: jest.fn(),
     findOne: jest.fn(),
@@ -25,6 +30,12 @@ describe('MessageService auto assignment on first CS reply', () => {
     updateLastMessage: jest.fn(),
     incrementUnreadCount: jest.fn(),
     assignIfUnassigned: jest.fn(),
+  };
+
+  const resolveAutoAssigneeOnFirstReply = jest.fn();
+
+  const moduleOptions: OmnichannelModuleOptions = {
+    resolveAutoAssigneeOnFirstReply,
   };
 
   const baseConversation: IConversation = {
@@ -71,7 +82,7 @@ describe('MessageService auto assignment on first CS reply', () => {
     jest.clearAllMocks();
     service = new MessageService(
       mockMessageRepository,
-      undefined,
+      moduleOptions,
       mockWhatsAppAdapter as any,
       mockInstagramAdapter as any,
       mockConversationService as any,
@@ -90,7 +101,9 @@ describe('MessageService auto assignment on first CS reply', () => {
     mockMessageRepository.create.mockResolvedValue(savedMessage);
   });
 
-  it('auto-assigns the conversation when the first reply is sent by a cs_staff user', async () => {
+  it('auto-assigns using the host-provided resolver result', async () => {
+    resolveAutoAssigneeOnFirstReply.mockResolvedValue(42);
+
     await service.sendMessage(
       1,
       {
@@ -99,13 +112,37 @@ describe('MessageService auto assignment on first CS reply', () => {
       },
       42,
       'Alice',
-      'cs_staff',
+      'LV6_FRONT',
     );
 
+    expect(resolveAutoAssigneeOnFirstReply).toHaveBeenCalledWith({
+      conversation: expect.objectContaining({ id: 1, assignedUserId: null }),
+      senderUserId: 42,
+      senderName: 'Alice',
+      senderRole: 'LV6_FRONT',
+    });
     expect(mockConversationService.assignIfUnassigned).toHaveBeenCalledWith(1, 42);
   });
 
-  it('does not auto-assign when the conversation is already assigned', async () => {
+  it('does not auto-assign when the resolver returns null', async () => {
+    resolveAutoAssigneeOnFirstReply.mockResolvedValue(null);
+
+    await service.sendMessage(
+      1,
+      {
+        contentType: 'text',
+        contentText: '관리자 답장',
+      },
+      42,
+      'Alice',
+      'admin',
+    );
+
+    expect(resolveAutoAssigneeOnFirstReply).toHaveBeenCalled();
+    expect(mockConversationService.assignIfUnassigned).not.toHaveBeenCalled();
+  });
+
+  it('does not call the resolver when the conversation is already assigned', async () => {
     mockConversationService.findOne.mockResolvedValue({
       ...baseConversation,
       assignedUserId: 7,
@@ -119,24 +156,10 @@ describe('MessageService auto assignment on first CS reply', () => {
       },
       42,
       'Alice',
-      'cs_staff',
+      'LV2_MANAGER',
     );
 
-    expect(mockConversationService.assignIfUnassigned).not.toHaveBeenCalled();
-  });
-
-  it('does not auto-assign when the sender is not cs_staff', async () => {
-    await service.sendMessage(
-      1,
-      {
-        contentType: 'text',
-        contentText: '관리자 답장',
-      },
-      42,
-      'Alice',
-      'admin',
-    );
-
+    expect(resolveAutoAssigneeOnFirstReply).not.toHaveBeenCalled();
     expect(mockConversationService.assignIfUnassigned).not.toHaveBeenCalled();
   });
 });

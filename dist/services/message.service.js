@@ -82,6 +82,17 @@ let MessageService = MessageService_1 = class MessageService {
             return undefined;
         }
     }
+    async resolveAutoAssigneeOnFirstReply(conversation, senderUserId, senderName, senderRole) {
+        if (!this.moduleOptions?.resolveAutoAssigneeOnFirstReply) {
+            return null;
+        }
+        return this.moduleOptions.resolveAutoAssigneeOnFirstReply({
+            conversation,
+            senderUserId,
+            senderName,
+            senderRole,
+        });
+    }
     async findByConversation(conversationId, options) {
         return this.messageRepository.findByConversation(conversationId, options);
     }
@@ -170,10 +181,11 @@ let MessageService = MessageService_1 = class MessageService {
             metadata: null,
         });
         await this.conversationService.updateLastMessage(conversationId, dto.contentText?.substring(0, 100) ?? '[Media]', new Date());
-        if (senderUserId &&
-            senderRole === 'cs_staff' &&
-            conversation.assignedUserId == null) {
-            await this.conversationService.assignIfUnassigned(conversationId, senderUserId);
+        const assigneeId = conversation.assignedUserId == null
+            ? await this.resolveAutoAssigneeOnFirstReply(conversation, senderUserId, senderName, senderRole)
+            : null;
+        if (assigneeId != null) {
+            await this.conversationService.assignIfUnassigned(conversationId, assigneeId);
         }
         return message;
     }

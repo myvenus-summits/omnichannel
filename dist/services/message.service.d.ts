@@ -17,6 +17,7 @@ export declare class MessageService {
      * channelConfigId로 동적 credentials 조회
      */
     private resolveCredentials;
+    private resolveAutoAssigneeOnFirstReply;
     findByConversation(conversationId: number, options?: {
         limit?: number;
         before?: string;

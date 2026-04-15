@@ -88,6 +88,24 @@ export class MessageService {
     }
   }
 
+  private async resolveAutoAssigneeOnFirstReply(
+    conversation: import('../interfaces').IConversation,
+    senderUserId?: number,
+    senderName?: string,
+    senderRole?: string,
+  ): Promise<number | null> {
+    if (!this.moduleOptions?.resolveAutoAssigneeOnFirstReply) {
+      return null;
+    }
+
+    return this.moduleOptions.resolveAutoAssigneeOnFirstReply({
+      conversation,
+      senderUserId,
+      senderName,
+      senderRole,
+    });
+  }
+
   async findByConversation(
     conversationId: number,
     options?: { limit?: number; before?: string },
@@ -223,14 +241,20 @@ export class MessageService {
       new Date(),
     );
 
-    if (
-      senderUserId &&
-      senderRole === 'cs_staff' &&
+    const assigneeId =
       conversation.assignedUserId == null
-    ) {
+        ? await this.resolveAutoAssigneeOnFirstReply(
+            conversation,
+            senderUserId,
+            senderName,
+            senderRole,
+          )
+        : null;
+
+    if (assigneeId != null) {
       await this.conversationService.assignIfUnassigned(
         conversationId,
-        senderUserId,
+        assigneeId,
       );
     }
 
