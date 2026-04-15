@@ -65,6 +65,23 @@ export class ConversationService {
     });
   }
 
+  async assignIfUnassigned(id: number, userId: number): Promise<IConversation> {
+    await this.findOne(id); // Ensure exists
+
+    if (this.conversationRepository.assignIfUnassigned) {
+      return this.conversationRepository.assignIfUnassigned(id, userId);
+    }
+
+    const conversation = await this.findOne(id);
+    if (conversation.assignedUserId) {
+      return conversation;
+    }
+
+    return this.conversationRepository.update(id, {
+      assignedUserId: userId,
+    });
+  }
+
   async updateTags(id: number, dto: UpdateTagsDto): Promise<IConversation> {
     await this.findOne(id); // Ensure exists
     return this.conversationRepository.update(id, {

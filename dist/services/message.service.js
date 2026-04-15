@@ -19,6 +19,39 @@ const interfaces_1 = require("../interfaces");
 const whatsapp_adapter_1 = require("../adapters/whatsapp.adapter");
 const instagram_adapter_1 = require("../adapters/instagram.adapter");
 const conversation_service_1 = require("./conversation.service");
+const CHANNEL_MESSAGE_LIMITS = {
+    whatsapp: 1024,
+    instagram: 1000,
+};
+const DEFAULT_MESSAGE_LIMIT = 1000;
+/**
+ * 긴 텍스트를 최대 길이 이하의 청크로 분할 (줄바꿈 기준 우선 분할)
+ */
+function splitTextIntoChunks(text, maxLength) {
+    if (text.length <= maxLength)
+        return [text];
+    const chunks = [];
+    let remaining = text;
+    while (remaining.length > 0) {
+        if (remaining.length <= maxLength) {
+            chunks.push(remaining);
+            break;
+        }
+        // 줄바꿈 기준으로 분할 시도
+        let splitIndex = remaining.lastIndexOf('\n', maxLength);
+        if (splitIndex <= 0) {
+            // 줄바꿈이 없으면 공백 기준으로 분할
+            splitIndex = remaining.lastIndexOf(' ', maxLength);
+        }
+        if (splitIndex <= 0) {
+            // 공백도 없으면 강제 분할
+            splitIndex = maxLength;
+        }
+        chunks.push(remaining.substring(0, splitIndex));
+        remaining = remaining.substring(splitIndex).replace(/^\n/, '');
+    }
+    return chunks;
+}
 let MessageService = MessageService_1 = class MessageService {
     messageRepository;
     moduleOptions;
@@ -62,7 +95,7 @@ let MessageService = MessageService_1 = class MessageService {
     async create(data) {
         return this.messageRepository.create(data);
     }
-    async sendMessage(conversationId, dto, senderUserId, senderName) {
+    async sendMessage(conversationId, dto, senderUserId, senderName, senderRole) {
         const conversation = await this.conversationService.findOne(conversationId);
         // 멀티테넌트: conversation의 channelConfigId로 credentials 조회
         const credentials = await this.resolveCredentials(conversation.channelConfigId);
@@ -91,12 +124,33 @@ let MessageService = MessageService_1 = class MessageService {
                 : dto.contentType === 'image'
                     ? 'image'
                     : 'file';
-            result = await adapter.sendMessage(conversation.contactIdentifier, {
-                type: messageType,
-                text: dto.contentText,
-                mediaUrl: dto.contentMediaUrl,
-                replyToExternalId,
-            }, credentials);
+            // 채널별 글자수 제한
+            const maxLength = CHANNEL_MESSAGE_LIMITS[conversation.channel] ?? DEFAULT_MESSAGE_LIMIT;
+            // 긴 텍스트 메시지를 청크로 분할하여 전송
+            if (messageType === 'text' && dto.contentText && dto.contentText.length > maxLength) {
+                const chunks = splitTextIntoChunks(dto.contentText, maxLength);
+                this.logger.log(`Splitting long message (${dto.contentText.length} chars) into ${chunks.length} chunks`);
+                for (let i = 0; i < chunks.length; i++) {
+                    result = await adapter.sendMessage(conversation.contactIdentifier, {
+                        type: messageType,
+                        text: chunks[i],
+                        mediaUrl: undefined,
+                        // reply context는 첫 번째 청크에만 적용
+                        replyToExternalId: i === 0 ? replyToExternalId : undefined,
+                    }, credentials);
+                    if (!result.success) {
+                        throw new Error(`Failed to send message chunk ${i + 1}/${chunks.length}: ${result.error}`);
+                    }
+                }
+            }
+            else {
+                result = await adapter.sendMessage(conversation.contactIdentifier, {
+                    type: messageType,
+                    text: dto.contentText,
+                    mediaUrl: dto.contentMediaUrl,
+                    replyToExternalId,
+                }, credentials);
+            }
         }
         if (!result.success) {
             throw new Error(`Failed to send message: ${result.error}`);
@@ -116,6 +170,11 @@ let MessageService = MessageService_1 = class MessageService {
             metadata: null,
         });
         await this.conversationService.updateLastMessage(conversationId, dto.contentText?.substring(0, 100) ?? '[Media]', new Date());
+        if (senderUserId &&
+            senderRole === 'cs_staff' &&
+            conversation.assignedUserId == null) {
+            await this.conversationService.assignIfUnassigned(conversationId, senderUserId);
+        }
         return message;
     }
     async createFromWebhook(conversationId, data) {

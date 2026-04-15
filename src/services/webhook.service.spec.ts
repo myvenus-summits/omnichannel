@@ -306,6 +306,7 @@ describe('WebhookService', () => {
       expect(mockMessageService.updateStatus).toHaveBeenCalledWith(
         'IM123',
         'delivered',
+        undefined,
       );
     });
 

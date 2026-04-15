@@ -114,6 +114,7 @@ export class MessageService {
     dto: CreateMessageDto,
     senderUserId?: number,
     senderName?: string,
+    senderRole?: string,
   ): Promise<IMessage> {
     const conversation = await this.conversationService.findOne(conversationId);
 
@@ -221,6 +222,17 @@ export class MessageService {
       dto.contentText?.substring(0, 100) ?? '[Media]',
       new Date(),
     );
+
+    if (
+      senderUserId &&
+      senderRole === 'cs_staff' &&
+      conversation.assignedUserId == null
+    ) {
+      await this.conversationService.assignIfUnassigned(
+        conversationId,
+        senderUserId,
+      );
+    }
 
     return message;
   }

@@ -55,6 +55,19 @@ let ConversationService = ConversationService_1 = class ConversationService {
             assignedUserId: dto.userId ?? null,
         });
     }
+    async assignIfUnassigned(id, userId) {
+        await this.findOne(id); // Ensure exists
+        if (this.conversationRepository.assignIfUnassigned) {
+            return this.conversationRepository.assignIfUnassigned(id, userId);
+        }
+        const conversation = await this.findOne(id);
+        if (conversation.assignedUserId) {
+            return conversation;
+        }
+        return this.conversationRepository.update(id, {
+            assignedUserId: userId,
+        });
+    }
     async updateTags(id, dto) {
         await this.findOne(id); // Ensure exists
         return this.conversationRepository.update(id, {
