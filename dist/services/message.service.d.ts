@@ -17,13 +17,14 @@ export declare class MessageService {
      * channelConfigId로 동적 credentials 조회
      */
     private resolveCredentials;
+    private resolveAutoAssigneeOnFirstReply;
     findByConversation(conversationId: number, options?: {
         limit?: number;
         before?: string;
     }): Promise<IMessage[]>;
     findOne(id: number): Promise<IMessage>;
     create(data: Partial<IMessage>): Promise<IMessage>;
-    sendMessage(conversationId: number, dto: CreateMessageDto, senderUserId?: number, senderName?: string): Promise<IMessage>;
+    sendMessage(conversationId: number, dto: CreateMessageDto, senderUserId?: number, senderName?: string, senderRole?: string): Promise<IMessage>;
     createFromWebhook(conversationId: number, data: {
         channelMessageId: string;
         direction: MessageDirection;

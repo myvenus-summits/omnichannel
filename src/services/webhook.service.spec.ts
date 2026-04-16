@@ -13,6 +13,7 @@ const mockConversationRepository: jest.Mocked<IConversationRepository> = {
   findByChannelConversationId: jest.fn(),
   create: jest.fn(),
   update: jest.fn(),
+  assignIfUnassigned: jest.fn(),
   incrementUnreadCount: jest.fn(),
   updateLastMessage: jest.fn(),
 };
@@ -306,6 +307,7 @@ describe('WebhookService', () => {
       expect(mockMessageService.updateStatus).toHaveBeenCalledWith(
         'IM123',
         'delivered',
+        undefined,
       );
     });
 

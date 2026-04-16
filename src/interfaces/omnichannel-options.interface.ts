@@ -119,6 +119,17 @@ export type WebhookChannelResolver = (
   identifier: string,
 ) => Promise<ResolvedChannelConfig | null>;
 
+export interface AutoAssigneeOnFirstReplyContext {
+  conversation: import('./conversation.interface').IConversation;
+  senderUserId?: number;
+  senderName?: string;
+  senderRole?: string;
+}
+
+export type AutoAssigneeOnFirstReplyResolver = (
+  context: AutoAssigneeOnFirstReplyContext,
+) => Promise<number | null> | number | null;
+
 /**
  * Omnichannel 모듈 설정 옵션
  */
@@ -155,6 +166,12 @@ export interface OmnichannelModuleOptions {
    * @since 1.1.0
    */
   webhookChannelResolver?: WebhookChannelResolver;
+
+  /**
+   * 첫 outbound human reply 이후 담당자 자동 배정 정책을 host product가 결정
+   * 패키지는 generic orchestration만 수행하고, role/권한 규칙은 각 product에서 주입한다.
+   */
+  resolveAutoAssigneeOnFirstReply?: AutoAssigneeOnFirstReplyResolver;
 
   /**
    * 애플리케이션 URL (웹훅 검증용)

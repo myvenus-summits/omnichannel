@@ -1,5 +1,6 @@
 import { MessageService } from './message.service';
 import { WhatsAppAdapter } from '../adapters/whatsapp.adapter';
+import { InstagramAdapter } from '../adapters/instagram.adapter';
 import { ConversationService } from './conversation.service';
 import { NotFoundException } from '@nestjs/common';
 import type { IMessageRepository, IMessage } from '../interfaces';
@@ -26,6 +27,11 @@ const mockConversationService = {
   incrementUnreadCount: jest.fn(),
 };
 
+const mockInstagramAdapter = {
+  sendMessage: jest.fn(),
+  sendTemplateMessage: jest.fn(),
+};
+
 describe('MessageService', () => {
   let service: MessageService;
 
@@ -33,7 +39,9 @@ describe('MessageService', () => {
     jest.clearAllMocks();
     service = new MessageService(
       mockMessageRepository,
+      undefined,
       mockWhatsAppAdapter as unknown as WhatsAppAdapter,
+      mockInstagramAdapter as unknown as InstagramAdapter,
       mockConversationService as unknown as ConversationService,
     );
   });
@@ -203,8 +211,14 @@ describe('MessageService', () => {
       });
 
       expect(mockWhatsAppAdapter.sendMessage).toHaveBeenCalledWith(
-        '+821012345678',
-        { type: 'text', text: 'Hello customer', mediaUrl: undefined },
+        expect.any(String),
+        expect.objectContaining({
+          type: 'text',
+          text: 'Hello customer',
+          mediaUrl: undefined,
+          replyToExternalId: undefined,
+        }),
+        undefined,
       );
       expect(result).toEqual(savedMessage);
       expect(mockConversationService.updateLastMessage).toHaveBeenCalled();
@@ -239,12 +253,14 @@ describe('MessageService', () => {
       });
 
       expect(mockWhatsAppAdapter.sendMessage).toHaveBeenCalledWith(
-        '+821012345678',
-        {
+        expect.any(String),
+        expect.objectContaining({
           type: 'image',
           text: undefined,
           mediaUrl: 'https://example.com/image.jpg',
-        },
+          replyToExternalId: undefined,
+        }),
+        undefined,
       );
     });
 
@@ -278,9 +294,10 @@ describe('MessageService', () => {
       });
 
       expect(mockWhatsAppAdapter.sendTemplateMessage).toHaveBeenCalledWith(
-        '+821012345678',
+        expect.any(String),
         'HX_WELCOME',
         { name: 'John' },
+        undefined,
       );
     });
 
@@ -502,19 +519,19 @@ describe('MessageService', () => {
     it('should update message status', async () => {
       await service.updateStatus('MSG123', 'delivered');
 
-      expect(mockMessageRepository.updateStatus).toHaveBeenCalledWith('MSG123', 'delivered');
+      expect(mockMessageRepository.updateStatus).toHaveBeenCalledWith('MSG123', 'delivered', undefined);
     });
 
     it('should handle read status', async () => {
       await service.updateStatus('MSG456', 'read');
 
-      expect(mockMessageRepository.updateStatus).toHaveBeenCalledWith('MSG456', 'read');
+      expect(mockMessageRepository.updateStatus).toHaveBeenCalledWith('MSG456', 'read', undefined);
     });
 
     it('should handle sent status', async () => {
       await service.updateStatus('MSG789', 'sent');
 
-      expect(mockMessageRepository.updateStatus).toHaveBeenCalledWith('MSG789', 'sent');
+      expect(mockMessageRepository.updateStatus).toHaveBeenCalledWith('MSG789', 'sent', undefined);
     });
   });
 });

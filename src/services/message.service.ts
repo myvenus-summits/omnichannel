@@ -88,6 +88,24 @@ export class MessageService {
     }
   }
 
+  private async resolveAutoAssigneeOnFirstReply(
+    conversation: import('../interfaces').IConversation,
+    senderUserId?: number,
+    senderName?: string,
+    senderRole?: string,
+  ): Promise<number | null> {
+    if (!this.moduleOptions?.resolveAutoAssigneeOnFirstReply) {
+      return null;
+    }
+
+    return this.moduleOptions.resolveAutoAssigneeOnFirstReply({
+      conversation,
+      senderUserId,
+      senderName,
+      senderRole,
+    });
+  }
+
   async findByConversation(
     conversationId: number,
     options?: { limit?: number; before?: string },
@@ -114,6 +132,7 @@ export class MessageService {
     dto: CreateMessageDto,
     senderUserId?: number,
     senderName?: string,
+    senderRole?: string,
   ): Promise<IMessage> {
     const conversation = await this.conversationService.findOne(conversationId);
 
@@ -221,6 +240,29 @@ export class MessageService {
       dto.contentText?.substring(0, 100) ?? '[Media]',
       new Date(),
     );
+
+    if (conversation.assignedUserId == null) {
+      try {
+        const assigneeId = await this.resolveAutoAssigneeOnFirstReply(
+          conversation,
+          senderUserId,
+          senderName,
+          senderRole,
+        );
+
+        if (assigneeId != null) {
+          await this.conversationService.assignIfUnassigned(
+            conversationId,
+            assigneeId,
+          );
+        }
+      } catch (error) {
+        this.logger.warn(
+          `Post-send auto-assignment failed for conversationId=${conversationId}`,
+          error,
+        );
+      }
+    }
 
     return message;
   }

@@ -44,7 +44,7 @@ let ConversationController = ConversationController_1 = class ConversationContro
         });
     }
     async sendMessage(id, dto, req) {
-        const message = await this.messageService.sendMessage(id, dto, req.user?.id, req.user?.name);
+        const message = await this.messageService.sendMessage(id, dto, req.user?.id, req.user?.name, req.user?.role);
         // 소켓 브로드캐스트 — 다른 CRM 세션에 실시간 동기화
         // try/catch로 감싸서 emit 실패가 HTTP 응답에 영향 주지 않도록 함
         try {

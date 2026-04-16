@@ -10,6 +10,7 @@ export declare class ConversationService {
     create(data: Partial<IConversation>): Promise<IConversation>;
     update(id: number, data: Partial<IConversation>): Promise<IConversation>;
     assign(id: number, dto: AssignDto): Promise<IConversation>;
+    assignIfUnassigned(id: number, userId: number): Promise<IConversation>;
     updateTags(id: number, dto: UpdateTagsDto): Promise<IConversation>;
     updateStatus(id: number, dto: UpdateStatusDto): Promise<IConversation>;
     markAsRead(id: number): Promise<IConversation>;
