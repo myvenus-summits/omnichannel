@@ -199,7 +199,9 @@ export class MessageService {
           );
 
           if (!result.success) {
-            throw new Error(`Failed to send message chunk ${i + 1}/${chunks.length}: ${result.error}`);
+            throw new BadRequestException(
+              `Failed to send message chunk ${i + 1}/${chunks.length}: ${result.error}`,
+            );
           }
         }
       } else {
@@ -217,7 +219,7 @@ export class MessageService {
     }
 
     if (!result.success) {
-      throw new Error(`Failed to send message: ${result.error}`);
+      throw new BadRequestException(`Failed to send message: ${result.error}`);
     }
 
     const message = await this.create({
@@ -456,7 +458,7 @@ export class MessageService {
     );
 
     if (!result.success) {
-      throw new Error(`Failed to resend message: ${result.error}`);
+      throw new BadRequestException(`Failed to resend message: ${result.error}`);
     }
 
     // Clear error metadata and mark as sent

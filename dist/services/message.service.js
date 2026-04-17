@@ -150,7 +150,7 @@ let MessageService = MessageService_1 = class MessageService {
                         replyToExternalId: i === 0 ? replyToExternalId : undefined,
                     }, credentials);
                     if (!result.success) {
-                        throw new Error(`Failed to send message chunk ${i + 1}/${chunks.length}: ${result.error}`);
+                        throw new common_1.BadRequestException(`Failed to send message chunk ${i + 1}/${chunks.length}: ${result.error}`);
                     }
                 }
             }
@@ -164,7 +164,7 @@ let MessageService = MessageService_1 = class MessageService {
             }
         }
         if (!result.success) {
-            throw new Error(`Failed to send message: ${result.error}`);
+            throw new common_1.BadRequestException(`Failed to send message: ${result.error}`);
         }
         const message = await this.create({
             conversationId,
@@ -313,7 +313,7 @@ let MessageService = MessageService_1 = class MessageService {
             mediaUrl: original.contentMediaUrl ?? undefined,
         }, credentials);
         if (!result.success) {
-            throw new Error(`Failed to resend message: ${result.error}`);
+            throw new common_1.BadRequestException(`Failed to resend message: ${result.error}`);
         }
         // Clear error metadata and mark as sent
         await this.messageRepository.updateStatus(original.channelMessageId, 'sent', {
