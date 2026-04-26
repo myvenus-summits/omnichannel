@@ -14,11 +14,5 @@ var __exportStar = (this && this.__exportStar) || function(m, exports) {
     for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-__exportStar(require("./conversation.service"), exports);
-__exportStar(require("./message.service"), exports);
-__exportStar(require("./webhook.service"), exports);
-__exportStar(require("./quick-reply.service"), exports);
-__exportStar(require("./template.service"), exports);
-__exportStar(require("./archive.service"), exports);
-__exportStar(require("./master-template.service"), exports);
+__exportStar(require("./twilio-content.client"), exports);
 //# sourceMappingURL=index.js.map

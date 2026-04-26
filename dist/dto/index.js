@@ -21,4 +21,5 @@ __exportStar(require("./quick-reply.dto"), exports);
 __exportStar(require("./instagram-webhook.dto"), exports);
 __exportStar(require("./message-template.dto"), exports);
 __exportStar(require("./archive.dto"), exports);
+__exportStar(require("./master-template.dto"), exports);
 //# sourceMappingURL=index.js.map

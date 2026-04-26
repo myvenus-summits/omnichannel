@@ -23,6 +23,9 @@ export * from './dto';
 // Services
 export * from './services';
 
+// Twilio
+export * from './twilio';
+
 // Adapters
 export * from './adapters';
 

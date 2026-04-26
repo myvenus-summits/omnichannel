@@ -16,6 +16,7 @@ const instagram_adapter_1 = require("./adapters/instagram.adapter");
 const gateways_1 = require("./gateways");
 // Services
 const services_1 = require("./services");
+const twilio_content_client_1 = require("./twilio/twilio-content.client");
 const storage_interface_1 = require("./interfaces/storage.interface");
 // Controllers
 const controllers_1 = require("./controllers");
@@ -174,6 +175,21 @@ let OmnichannelModule = OmnichannelModule_1 = class OmnichannelModule {
                     },
                     inject: [interfaces_1.OMNICHANNEL_MODULE_OPTIONS],
                 },
+                // Master template repositories (optional)
+                {
+                    provide: interfaces_1.MASTER_TEMPLATE_REPOSITORY,
+                    useFactory: (opts) => {
+                        return opts.repositories?.masterTemplateRepository ?? null;
+                    },
+                    inject: [interfaces_1.OMNICHANNEL_MODULE_OPTIONS],
+                },
+                {
+                    provide: interfaces_1.DEPLOYMENT_REPOSITORY,
+                    useFactory: (opts) => {
+                        return opts.repositories?.deploymentRepository ?? null;
+                    },
+                    inject: [interfaces_1.OMNICHANNEL_MODULE_OPTIONS],
+                },
                 whatsapp_adapter_1.WhatsAppAdapter,
                 instagram_adapter_1.InstagramAdapter,
                 gateways_1.OmnichannelGateway,
@@ -183,6 +199,8 @@ let OmnichannelModule = OmnichannelModule_1 = class OmnichannelModule {
                 services_1.QuickReplyService,
                 services_1.TemplateService,
                 services_1.ArchiveService,
+                twilio_content_client_1.TwilioContentClient,
+                services_1.MasterTemplateService,
                 ...(options.extraProviders ?? []),
             ],
             exports: [
@@ -201,6 +219,10 @@ let OmnichannelModule = OmnichannelModule_1 = class OmnichannelModule {
                 services_1.QuickReplyService,
                 services_1.TemplateService,
                 services_1.ArchiveService,
+                twilio_content_client_1.TwilioContentClient,
+                services_1.MasterTemplateService,
+                interfaces_1.MASTER_TEMPLATE_REPOSITORY,
+                interfaces_1.DEPLOYMENT_REPOSITORY,
                 whatsapp_adapter_1.WhatsAppAdapter,
                 instagram_adapter_1.InstagramAdapter,
                 gateways_1.OmnichannelGateway,

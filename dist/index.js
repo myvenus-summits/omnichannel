@@ -33,6 +33,8 @@ __exportStar(require("./types"), exports);
 __exportStar(require("./dto"), exports);
 // Services
 __exportStar(require("./services"), exports);
+// Twilio
+__exportStar(require("./twilio"), exports);
 // Adapters
 __exportStar(require("./adapters"), exports);
 // Gateways

@@ -6,4 +6,5 @@ export * from './quick-reply.interface';
 export * from './repository.interface';
 export * from './message-template.interface';
 export * from './storage.interface';
+export * from './master-template.interface';
 //# sourceMappingURL=index.d.ts.map

@@ -5,4 +5,5 @@ export * from './quick-reply.dto';
 export * from './instagram-webhook.dto';
 export * from './message-template.dto';
 export * from './archive.dto';
+export * from './master-template.dto';
 //# sourceMappingURL=index.d.ts.map
