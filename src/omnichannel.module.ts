@@ -20,8 +20,11 @@ import {
   QuickReplyService,
   TemplateService,
   ArchiveService,
+  MasterTemplateService,
   ARCHIVED_CONVERSATION_REPOSITORY,
 } from './services';
+
+import { TwilioContentClient } from './twilio/twilio-content.client';
 
 import { STORAGE_ADAPTER } from './interfaces/storage.interface';
 
@@ -42,6 +45,8 @@ import {
   CONTACT_CHANNEL_REPOSITORY,
   MESSAGE_TEMPLATE_REPOSITORY,
   TEMPLATE_HISTORY_REPOSITORY,
+  MASTER_TEMPLATE_REPOSITORY,
+  DEPLOYMENT_REPOSITORY,
   OmnichannelModuleOptions,
   OmnichannelModuleAsyncOptions,
   OmnichannelOptionsFactory,
@@ -207,6 +212,21 @@ export class OmnichannelModule {
           },
           inject: [OMNICHANNEL_MODULE_OPTIONS],
         },
+        // Master template repositories (optional)
+        {
+          provide: MASTER_TEMPLATE_REPOSITORY,
+          useFactory: (opts: OmnichannelModuleOptions) => {
+            return opts.repositories?.masterTemplateRepository ?? null;
+          },
+          inject: [OMNICHANNEL_MODULE_OPTIONS],
+        },
+        {
+          provide: DEPLOYMENT_REPOSITORY,
+          useFactory: (opts: OmnichannelModuleOptions) => {
+            return opts.repositories?.deploymentRepository ?? null;
+          },
+          inject: [OMNICHANNEL_MODULE_OPTIONS],
+        },
         WhatsAppAdapter,
         InstagramAdapter,
         OmnichannelGateway,
@@ -216,6 +236,8 @@ export class OmnichannelModule {
         QuickReplyService,
         TemplateService,
         ArchiveService,
+        TwilioContentClient,
+        MasterTemplateService,
         ...(options.extraProviders ?? []),
       ],
       exports: [
@@ -234,6 +256,10 @@ export class OmnichannelModule {
         QuickReplyService,
         TemplateService,
         ArchiveService,
+        TwilioContentClient,
+        MasterTemplateService,
+        MASTER_TEMPLATE_REPOSITORY,
+        DEPLOYMENT_REPOSITORY,
         WhatsAppAdapter,
         InstagramAdapter,
         OmnichannelGateway,

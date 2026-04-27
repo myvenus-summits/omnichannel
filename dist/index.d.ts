@@ -12,6 +12,7 @@ export * from './interfaces';
 export * from './types';
 export * from './dto';
 export * from './services';
+export * from './twilio';
 export * from './adapters';
 export * from './gateways';
 export * from './controllers';

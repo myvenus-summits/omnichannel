@@ -3,6 +3,7 @@ import type { IConversationRepository, IMessageRepository, IQuickReplyRepository
 import type { IMessageTemplateRepository, ITemplateHistoryRepository } from './message-template.interface';
 import type { IStorageAdapter } from './storage.interface';
 import type { IArchivedConversationRepository } from '../services/archive.service';
+import type { IMasterTemplateRepository, ITemplateDeploymentRepository } from './master-template.interface';
 /**
  * Twilio 설정
  */
@@ -67,6 +68,16 @@ export interface RepositoryConfig {
      * 아카이브된 대화 목록 저장용
      */
     archivedConversationRepository?: IArchivedConversationRepository;
+    /**
+     * MasterTemplate Repository 구현체 (선택)
+     * 마스터 템플릿 원본 관리용
+     */
+    masterTemplateRepository?: IMasterTemplateRepository;
+    /**
+     * TemplateDeployment Repository 구현체 (선택)
+     * 지점별 배포 결과 추적용
+     */
+    deploymentRepository?: ITemplateDeploymentRepository;
 }
 /**
  * Channel Credentials Resolver
@@ -129,6 +140,12 @@ export interface OmnichannelModuleOptions {
      * @since 1.1.0
      */
     webhookChannelResolver?: WebhookChannelResolver;
+    /**
+     * 지점 ID로 Twilio credentials 조회
+     * 마스터 템플릿 배포 시 지점별 Twilio 계정 정보를 가져올 때 사용
+     * @since 1.9.0
+     */
+    clinicCredentialsResolver?: (clinicId: number) => Promise<TwilioConfig>;
     /**
      * 첫 outbound human reply 이후 담당자 자동 배정 정책을 host product가 결정
      * 패키지는 generic orchestration만 수행하고, role/권한 규칙은 각 product에서 주입한다.
