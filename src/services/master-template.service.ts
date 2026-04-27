@@ -292,15 +292,28 @@ export class MasterTemplateService {
     }
 
     const config = await this.resolveCredentials(deployment.clinicId);
-    const status = await this.twilioContentClient.getApprovalStatus(
-      deployment.twilioContentSid,
-      config,
-    );
+    try {
+      const status = await this.twilioContentClient.getApprovalStatus(
+        deployment.twilioContentSid,
+        config,
+      );
 
-    return deploymentRepo.update(deploymentId, {
-      approvalStatus: status.status,
-      rejectionReason: status.rejectionReason ?? null,
-    });
+      return deploymentRepo.update(deploymentId, {
+        approvalStatus: status.status,
+        rejectionReason: status.rejectionReason ?? null,
+      });
+    } catch (error: any) {
+      if (error?.status === 404 || error?.code === 20404) {
+        this.logger.warn(
+          `Twilio template ${deployment.twilioContentSid} not found (deleted). Marking as deleted.`,
+        );
+        return deploymentRepo.update(deploymentId, {
+          approvalStatus: 'deleted',
+          rejectionReason: 'Template deleted from Twilio',
+        });
+      }
+      throw error;
+    }
   }
 
   async undeploy(deploymentId: number): Promise<void> {

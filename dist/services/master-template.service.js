@@ -200,11 +200,23 @@ let MasterTemplateService = MasterTemplateService_1 = class MasterTemplateServic
             throw new common_1.NotFoundException('No Twilio SID for this deployment');
         }
         const config = await this.resolveCredentials(deployment.clinicId);
-        const status = await this.twilioContentClient.getApprovalStatus(deployment.twilioContentSid, config);
-        return deploymentRepo.update(deploymentId, {
-            approvalStatus: status.status,
-            rejectionReason: status.rejectionReason ?? null,
-        });
+        try {
+            const status = await this.twilioContentClient.getApprovalStatus(deployment.twilioContentSid, config);
+            return deploymentRepo.update(deploymentId, {
+                approvalStatus: status.status,
+                rejectionReason: status.rejectionReason ?? null,
+            });
+        }
+        catch (error) {
+            if (error?.status === 404 || error?.code === 20404) {
+                this.logger.warn(`Twilio template ${deployment.twilioContentSid} not found (deleted). Marking as deleted.`);
+                return deploymentRepo.update(deploymentId, {
+                    approvalStatus: 'deleted',
+                    rejectionReason: 'Template deleted from Twilio',
+                });
+            }
+            throw error;
+        }
     }
     async undeploy(deploymentId) {
         const { deploymentRepo } = this.ensureRepos();
