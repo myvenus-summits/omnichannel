@@ -183,21 +183,32 @@ export class TwilioContentClient {
     category?: string;
     rejectionReason?: string;
   }> {
-    const client = this.getClient(config);
     try {
-      const contentContext = client.content.v1.contents(sid) as any;
-      const approval = contentContext.approvalFetch?.fetch
-        ? await contentContext.approvalFetch.fetch()
-        : await contentContext.approvalRequests().fetch();
+      // Twilio SDK 대신 REST API 직접 호출 (SDK 파싱 이슈 회피)
+      const url = `https://content.twilio.com/v1/Content/${sid}/ApprovalRequests`;
+      const auth = Buffer.from(`${config.accountSid}:${config.authToken}`).toString('base64');
+      const resp = await fetch(url, {
+        headers: { Authorization: `Basic ${auth}` },
+      });
+
+      if (!resp.ok) {
+        if (resp.status === 404) {
+          return { status: 'unsubmitted' as ApprovalStatus };
+        }
+        throw new Error(`Twilio API error: ${resp.status}`);
+      }
+
+      const data = await resp.json() as any;
+      const approval = data.whatsapp ?? {};
 
       return {
-        status: (approval as any).status ?? 'draft',
-        category: (approval as any).category,
-        rejectionReason: (approval as any).rejectionReason,
+        status: (approval.status ?? 'draft') as ApprovalStatus,
+        category: approval.category,
+        rejectionReason: approval.rejection_reason ?? approval.rejectionReason,
       };
     } catch (error: any) {
-      if (error?.status === 404) {
-        return { status: 'unsubmitted' };
+      if (error?.status === 404 || error?.code === 20404) {
+        return { status: 'unsubmitted' as ApprovalStatus };
       }
       throw error;
     }
