@@ -132,12 +132,26 @@ let MasterTemplateService = MasterTemplateService_1 = class MasterTemplateServic
                     };
                 }
                 const config = await this.resolveCredentials(clinicId);
+                // contentTransformer가 있으면 병원별로 내용 변환
+                let deployBody = master.body;
+                let deployTypes = master.types ?? undefined;
+                let deployVariables = master.variables ?? undefined;
+                if (options?.contentTransformer) {
+                    const transformed = await options.contentTransformer(clinicId, {
+                        body: master.body,
+                        types: master.types ?? undefined,
+                        variables: master.variables ?? undefined,
+                    });
+                    deployBody = transformed.body;
+                    deployTypes = transformed.types;
+                    deployVariables = transformed.variables;
+                }
                 const created = await this.twilioContentClient.create({
                     friendlyName: master.friendlyName,
                     language: master.language,
-                    body: master.body,
-                    types: master.types ?? undefined,
-                    variables: master.variables ?? undefined,
+                    body: deployBody,
+                    types: deployTypes,
+                    variables: deployVariables,
                 }, config);
                 await this.twilioContentClient.submitApproval(created.sid, { name: master.friendlyName, category: master.category }, config);
                 if (existing) {

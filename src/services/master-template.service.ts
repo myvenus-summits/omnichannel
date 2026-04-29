@@ -21,9 +21,23 @@ import {
 } from '../interfaces/master-template.interface';
 import { TwilioContentClient } from '../twilio/twilio-content.client';
 
+export interface DeployContentOverride {
+  body: string;
+  types?: Record<string, unknown>;
+  variables?: Record<string, unknown>;
+}
+
 export interface DeployOptions {
   delayBetweenDeploys?: number;
   maxRetries?: number;
+  /**
+   * 병원별로 템플릿 내용(body, types 등)을 변환하는 콜백.
+   * 미제공 시 마스터 템플릿 원본을 그대로 사용.
+   */
+  contentTransformer?: (
+    clinicId: number,
+    content: DeployContentOverride,
+  ) => DeployContentOverride | Promise<DeployContentOverride>;
 }
 
 const DEFAULT_DEPLOY_DELAY = 500;
@@ -197,13 +211,29 @@ export class MasterTemplateService {
 
         const config = await this.resolveCredentials(clinicId);
 
+        // contentTransformer가 있으면 병원별로 내용 변환
+        let deployBody = master.body;
+        let deployTypes = master.types ?? undefined;
+        let deployVariables = master.variables ?? undefined;
+
+        if (options?.contentTransformer) {
+          const transformed = await options.contentTransformer(clinicId, {
+            body: master.body,
+            types: master.types ?? undefined,
+            variables: master.variables ?? undefined,
+          });
+          deployBody = transformed.body;
+          deployTypes = transformed.types ?? deployTypes;
+          deployVariables = transformed.variables ?? deployVariables;
+        }
+
         const created = await this.twilioContentClient.create(
           {
             friendlyName: master.friendlyName,
             language: master.language,
-            body: master.body,
-            types: master.types ?? undefined,
-            variables: master.variables ?? undefined,
+            body: deployBody,
+            types: deployTypes,
+            variables: deployVariables,
           },
           config,
         );
