@@ -46,6 +46,12 @@ export interface IConversationRepository {
     }): Promise<PaginatedResult<IConversation>>;
     findOne(id: number): Promise<IConversation | null>;
     findByChannelConversationId(channelConversationId: string, channelConfigId?: number | null): Promise<IConversation | null>;
+    /**
+     * contactIdentifier + channelConfigId로 대화 조회
+     * outbound로 먼저 생성된 대화를 inbound 웹훅에서 매칭할 때 사용
+     * optional — 구현하지 않으면 3차 조회 스킵
+     */
+    findByContactIdentifier?(contactIdentifier: string, channelConfigId: number): Promise<IConversation | null>;
     create(data: Partial<CreateConversationData>): Promise<IConversation>;
     update(id: number, data: UpdateConversationData): Promise<IConversation>;
     assignIfUnassigned?(id: number, userId: number): Promise<IConversation>;
