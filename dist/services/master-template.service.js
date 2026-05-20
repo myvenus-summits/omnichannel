@@ -143,8 +143,8 @@ let MasterTemplateService = MasterTemplateService_1 = class MasterTemplateServic
                         variables: master.variables ?? undefined,
                     });
                     deployBody = transformed.body;
-                    deployTypes = transformed.types;
-                    deployVariables = transformed.variables;
+                    deployTypes = transformed.types ?? deployTypes;
+                    deployVariables = transformed.variables ?? deployVariables;
                 }
                 const created = await this.twilioContentClient.create({
                     friendlyName: master.friendlyName,

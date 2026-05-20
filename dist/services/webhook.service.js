@@ -157,6 +157,18 @@ let WebhookService = WebhookService_1 = class WebhookService {
                 conversation = fallback;
             }
         }
+        // 3차: contactIdentifier + channelConfigId로 조회 (outbound 대화 매칭)
+        if (!conversation && channelConfigId && event.contactIdentifier && this.conversationRepository.findByContactIdentifier) {
+            const matched = await this.conversationRepository.findByContactIdentifier(event.contactIdentifier, channelConfigId);
+            if (matched) {
+                conversation = matched;
+                // channelConversationId를 Twilio 값으로 업데이트 (이후 1차에서 바로 매칭)
+                await this.conversationRepository.update(conversation.id, {
+                    channelConversationId: event.channelConversationId,
+                });
+                this.logger.log(`Matched outbound conversation ${conversation.id} by contactIdentifier, updated channelConversationId`);
+            }
+        }
         const isNewConversation = !conversation;
         // Resolve per-clinic credentials for API calls (e.g., fetchUserProfile)
         let resolvedCredentials;
@@ -302,6 +314,16 @@ let WebhookService = WebhookService_1 = class WebhookService {
         this.logger.log(`🔔 Emitting WebSocket events for conversation ${updatedConversation.id}`);
         this.omnichannelGateway?.emitNewMessage(updatedConversation.id, message);
         this.omnichannelGateway?.emitConversationUpdate(updatedConversation);
+        // 신규 인바운드 대화 콜백 (fire-and-forget)
+        if (isNewConversation && event.message.direction === 'inbound' && this.options?.onNewInboundConversation) {
+            Promise.resolve(this.options.onNewInboundConversation({
+                conversation: updatedConversation,
+                message,
+                channel,
+            })).catch((err) => {
+                this.logger.warn(`onNewInboundConversation callback failed: ${err}`);
+            });
+        }
     }
     /**
      * Instagram 프로필을 contact_channel에 저장 (fire-and-forget)
