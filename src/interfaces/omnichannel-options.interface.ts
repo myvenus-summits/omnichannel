@@ -223,6 +223,17 @@ export interface OmnichannelModuleOptions {
   storageAdapter?: IStorageAdapter;
 
   /**
+   * 신규 인바운드 대화 생성 시 호출되는 콜백
+   * 처음 연락하는 고객의 WhatsApp 메시지 수신 시 호스트에서 자동 응답 등을 처리
+   * optional — 등록하지 않으면 호출되지 않음
+   */
+  onNewInboundConversation?: (context: {
+    conversation: import('./conversation.interface').IConversation;
+    message: import('./message.interface').IMessage;
+    channel: string;
+  }) => Promise<void> | void;
+
+  /**
    * 수신 미디어 URL을 변환하는 훅 (예: Twilio URL → S3 업로드)
    * @param url - 원본 미디어 URL
    * @param contentType - 미디어 타입 (image, video, file)
