@@ -108,7 +108,58 @@ export class TwilioWebhookDto {
   @IsString()
   ButtonPayload?: string;
 
-  @ApiPropertyOptional({ description: 'Referral info (WhatsApp ads)' })
+  // ===== Click-to-WhatsApp (CTWA) ad referral fields =====
+  // Sent by Twilio ONLY when the inbound message originated from a Meta
+  // "Click to WhatsApp" ad. Must be declared here so the global ValidationPipe
+  // ({ whitelist: true }) does not strip them before the adapter runs.
+  // https://www.twilio.com/docs/messaging/guides/webhook-request
+
+  @ApiPropertyOptional({ description: 'CTWA ad: Meta-generated click ID (ctwa_clid)' })
+  @IsOptional()
+  @IsString()
+  ReferralCtwaClid?: string;
+
+  @ApiPropertyOptional({ description: 'CTWA ad: Meta/WhatsApp ID of the source ad' })
+  @IsOptional()
+  @IsString()
+  ReferralSourceId?: string;
+
+  @ApiPropertyOptional({ description: 'CTWA ad: type of the source ad' })
+  @IsOptional()
+  @IsString()
+  ReferralSourceType?: string;
+
+  @ApiPropertyOptional({ description: 'CTWA ad: URL referenced by the ad' })
+  @IsOptional()
+  @IsString()
+  ReferralSourceUrl?: string;
+
+  @ApiPropertyOptional({ description: 'CTWA ad: headline text' })
+  @IsOptional()
+  @IsString()
+  ReferralHeadline?: string;
+
+  @ApiPropertyOptional({ description: 'CTWA ad: body text' })
+  @IsOptional()
+  @IsString()
+  ReferralBody?: string;
+
+  @ApiPropertyOptional({ description: 'CTWA ad: Meta/WhatsApp ID of the ad media' })
+  @IsOptional()
+  @IsString()
+  ReferralMediaId?: string;
+
+  @ApiPropertyOptional({ description: 'CTWA ad: content type of the ad media' })
+  @IsOptional()
+  @IsString()
+  ReferralMediaContentType?: string;
+
+  @ApiPropertyOptional({ description: 'CTWA ad: URL of the ad media' })
+  @IsOptional()
+  @IsString()
+  ReferralMediaUrl?: string;
+
+  @ApiPropertyOptional({ description: 'CTWA ad: number of media items in the ad' })
   @IsOptional()
   @IsString()
   ReferralNumMedia?: string;
