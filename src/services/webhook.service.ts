@@ -333,6 +333,23 @@ export class WebhookService {
     };
     if (event.message.direction === 'inbound') {
       updateData.lastInboundAt = event.message.timestamp;
+      // Click-to-WhatsApp ad referral: copy first-touch from the message
+      // metadata onto the conversation so downstream attribution (e.g. CAPI,
+      // sheet exports) can read ad context per-conversation. First-touch only —
+      // never overwrite an existing referral. No-op for non-ad messages, so
+      // organic traffic and other consumers are unaffected.
+      const messageReferral = (
+        event.message.metadata as Record<string, unknown> | null | undefined
+      )?.referral;
+      const existingReferral = (
+        conversation.metadata as Record<string, unknown> | null | undefined
+      )?.referral;
+      if (messageReferral && !existingReferral) {
+        updateData.metadata = {
+          ...(conversation.metadata ?? {}),
+          referral: messageReferral,
+        };
+      }
     }
     let updatedConversation = await this.conversationRepository.update(conversation.id, updateData);
 

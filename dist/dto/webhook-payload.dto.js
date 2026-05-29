@@ -38,6 +38,20 @@ class TwilioWebhookDto {
     NumMedia;
     NumSegments;
     ButtonPayload;
+    // ===== Click-to-WhatsApp (CTWA) ad referral fields =====
+    // Sent by Twilio ONLY when the inbound message originated from a Meta
+    // "Click to WhatsApp" ad. Must be declared here so the global ValidationPipe
+    // ({ whitelist: true }) does not strip them before the adapter runs.
+    // https://www.twilio.com/docs/messaging/guides/webhook-request
+    ReferralCtwaClid;
+    ReferralSourceId;
+    ReferralSourceType;
+    ReferralSourceUrl;
+    ReferralHeadline;
+    ReferralBody;
+    ReferralMediaId;
+    ReferralMediaContentType;
+    ReferralMediaUrl;
     ReferralNumMedia;
     ApiVersion;
     // ===== Messaging API media & reply fields (indexed for whitelist) =====
@@ -169,7 +183,61 @@ __decorate([
     __metadata("design:type", String)
 ], TwilioWebhookDto.prototype, "ButtonPayload", void 0);
 __decorate([
-    (0, swagger_1.ApiPropertyOptional)({ description: 'Referral info (WhatsApp ads)' }),
+    (0, swagger_1.ApiPropertyOptional)({ description: 'CTWA ad: Meta-generated click ID (ctwa_clid)' }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], TwilioWebhookDto.prototype, "ReferralCtwaClid", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({ description: 'CTWA ad: Meta/WhatsApp ID of the source ad' }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], TwilioWebhookDto.prototype, "ReferralSourceId", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({ description: 'CTWA ad: type of the source ad' }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], TwilioWebhookDto.prototype, "ReferralSourceType", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({ description: 'CTWA ad: URL referenced by the ad' }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], TwilioWebhookDto.prototype, "ReferralSourceUrl", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({ description: 'CTWA ad: headline text' }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], TwilioWebhookDto.prototype, "ReferralHeadline", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({ description: 'CTWA ad: body text' }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], TwilioWebhookDto.prototype, "ReferralBody", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({ description: 'CTWA ad: Meta/WhatsApp ID of the ad media' }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], TwilioWebhookDto.prototype, "ReferralMediaId", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({ description: 'CTWA ad: content type of the ad media' }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], TwilioWebhookDto.prototype, "ReferralMediaContentType", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({ description: 'CTWA ad: URL of the ad media' }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], TwilioWebhookDto.prototype, "ReferralMediaUrl", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({ description: 'CTWA ad: number of media items in the ad' }),
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)

@@ -267,6 +267,62 @@ describe('WhatsAppAdapter', () => {
       expect(result?.message?.contentMediaUrl).toBe('https://twilio.com/media/123.jpg');
     });
 
+    it('should capture Click-to-WhatsApp ad referral into message metadata', () => {
+      const payload = {
+        SmsMessageSid: 'SM123456789',
+        MessageSid: 'SM123456789',
+        From: 'whatsapp:+821012345678',
+        To: 'whatsapp:+14155551234',
+        ProfileName: 'Jane Doe',
+        Body: 'Hi, I saw your ad',
+        NumMedia: '0',
+        ReferralCtwaClid: 'ARxxxxCtwaClid',
+        ReferralSourceId: '120209000000000',
+        ReferralSourceType: 'ad',
+        ReferralSourceUrl: 'https://fb.me/abc',
+        ReferralHeadline: 'Glow up at MyWave',
+        ReferralBody: 'Book your consultation today',
+        ReferralMediaId: '987654321',
+        ReferralMediaContentType: 'image/jpeg',
+        ReferralMediaUrl: 'https://twilio.com/ad-media.jpg',
+        ReferralNumMedia: '1',
+      };
+
+      const result = adapter.parseWebhookPayload(payload);
+
+      expect(result?.type).toBe('message');
+      expect(result?.message?.direction).toBe('inbound');
+      const referral = result?.message?.metadata?.referral as
+        | Record<string, string>
+        | undefined;
+      expect(referral).toBeDefined();
+      expect(referral?.ctwaClid).toBe('ARxxxxCtwaClid');
+      expect(referral?.sourceId).toBe('120209000000000');
+      expect(referral?.sourceType).toBe('ad');
+      expect(referral?.headline).toBe('Glow up at MyWave');
+      expect(referral?.body).toBe('Book your consultation today');
+      expect(referral?.mediaContentType).toBe('image/jpeg');
+      expect(referral?.numMedia).toBe('1');
+    });
+
+    it('should not attach referral metadata for organic (non-ad) messages', () => {
+      const payload = {
+        SmsMessageSid: 'SM987654321',
+        MessageSid: 'SM987654321',
+        From: 'whatsapp:+821012345678',
+        To: 'whatsapp:+14155551234',
+        ProfileName: 'Jane Doe',
+        Body: 'Just a normal message',
+        NumMedia: '0',
+      };
+
+      const result = adapter.parseWebhookPayload(payload);
+
+      expect(result?.type).toBe('message');
+      expect(result?.message?.metadata).toBeDefined();
+      expect(result?.message?.metadata).not.toHaveProperty('referral');
+    });
+
     it('should return null for unknown event type', () => {
       const payload = {
         EventType: 'unknownEvent',

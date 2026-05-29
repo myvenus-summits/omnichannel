@@ -42,6 +42,19 @@ export declare class WhatsAppAdapter implements ChannelAdapter {
      * https://www.twilio.com/docs/messaging/guides/webhook-request
      */
     private parseMessagingApiPayload;
+    /**
+     * Extract Click-to-WhatsApp (CTWA) ad referral attributes from a Twilio
+     * Messaging API webhook.
+     *
+     * Twilio sends these fields ONLY when the inbound message originated from a
+     * Meta "Click to WhatsApp" ad (Instagram / Facebook). For organic messages
+     * none are present, so this returns `undefined` and the message metadata is
+     * left byte-for-byte unchanged — keeping behaviour identical for non-ad
+     * traffic across every service that consumes this package.
+     *
+     * https://www.twilio.com/docs/messaging/guides/webhook-request
+     */
+    private parseReferral;
     fetchMessages(conversationId: string, options?: {
         limit?: number;
         before?: string;

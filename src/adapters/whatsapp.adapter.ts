@@ -10,6 +10,7 @@ import type {
   MessageDirection,
   MessageContentType,
   MessageStatus,
+  CtwaReferral,
 } from '../types';
 import type { TwilioWebhookDto } from '../dto';
 import {
@@ -422,6 +423,10 @@ export class WhatsAppAdapter implements ChannelAdapter {
     // Extract reply context from Twilio webhook (OriginalRepliedMessageSid)
     const replyToExternalId = twilioPayload.OriginalRepliedMessageSid ?? undefined;
 
+    // Click-to-WhatsApp (CTWA) ad referral — present only when this conversation
+    // started from a Meta "Click to WhatsApp" ad; undefined for organic messages.
+    const referral = this.parseReferral(twilioPayload);
+
     return {
       type: 'message',
       channelConversationId: conversationId,
@@ -443,9 +448,48 @@ export class WhatsAppAdapter implements ChannelAdapter {
           apiVersion: twilioPayload.ApiVersion,
           numMedia,
           numSegments: twilioPayload.NumSegments,
+          ...(referral ? { referral } : {}),
         },
       },
     };
+  }
+
+  /**
+   * Extract Click-to-WhatsApp (CTWA) ad referral attributes from a Twilio
+   * Messaging API webhook.
+   *
+   * Twilio sends these fields ONLY when the inbound message originated from a
+   * Meta "Click to WhatsApp" ad (Instagram / Facebook). For organic messages
+   * none are present, so this returns `undefined` and the message metadata is
+   * left byte-for-byte unchanged — keeping behaviour identical for non-ad
+   * traffic across every service that consumes this package.
+   *
+   * https://www.twilio.com/docs/messaging/guides/webhook-request
+   */
+  private parseReferral(
+    twilioPayload: TwilioWebhookDto,
+  ): CtwaReferral | undefined {
+    const entries: Array<[keyof CtwaReferral, string | undefined]> = [
+      ['ctwaClid', twilioPayload.ReferralCtwaClid],
+      ['sourceId', twilioPayload.ReferralSourceId],
+      ['sourceType', twilioPayload.ReferralSourceType],
+      ['sourceUrl', twilioPayload.ReferralSourceUrl],
+      ['headline', twilioPayload.ReferralHeadline],
+      ['body', twilioPayload.ReferralBody],
+      ['mediaId', twilioPayload.ReferralMediaId],
+      ['mediaContentType', twilioPayload.ReferralMediaContentType],
+      ['mediaUrl', twilioPayload.ReferralMediaUrl],
+      ['numMedia', twilioPayload.ReferralNumMedia],
+    ];
+
+    const referral: CtwaReferral = {};
+    for (const [key, value] of entries) {
+      if (value !== undefined && value !== null && value !== '') {
+        referral[key] = value;
+      }
+    }
+
+    return Object.keys(referral).length > 0 ? referral : undefined;
   }
 
   async fetchMessages(

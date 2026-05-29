@@ -23,6 +23,15 @@ export declare class TwilioWebhookDto {
     NumMedia?: string;
     NumSegments?: string;
     ButtonPayload?: string;
+    ReferralCtwaClid?: string;
+    ReferralSourceId?: string;
+    ReferralSourceType?: string;
+    ReferralSourceUrl?: string;
+    ReferralHeadline?: string;
+    ReferralBody?: string;
+    ReferralMediaId?: string;
+    ReferralMediaContentType?: string;
+    ReferralMediaUrl?: string;
     ReferralNumMedia?: string;
     ApiVersion?: string;
     MediaUrl0?: string;

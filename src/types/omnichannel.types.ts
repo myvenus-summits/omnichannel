@@ -47,6 +47,41 @@ export interface NormalizedMessage {
   metadata?: Record<string, unknown>;
 }
 
+/**
+ * Click-to-WhatsApp (CTWA) ad referral attributes.
+ *
+ * Populated by channel adapters ONLY when an inbound message originated from a
+ * Meta "Click to WhatsApp" ad (Instagram / Facebook). Surfaced on
+ * `NormalizedMessage.metadata.referral` and persisted as-is in the message's
+ * jsonb metadata, so any consuming service (mywave / myvenus / myderma) can
+ * opt in to ad attribution by reading this object — no further changes to the
+ * shared package are required, and non-ad traffic is completely unaffected.
+ *
+ * https://www.twilio.com/docs/messaging/guides/webhook-request
+ */
+export interface CtwaReferral {
+  /** Meta-generated click ID. Forward to Meta Conversions API as `ctwa_clid`. */
+  ctwaClid?: string;
+  /** Meta/WhatsApp ID of the source ad (identifies the ad/campaign). */
+  sourceId?: string;
+  /** Type of the source ad. */
+  sourceType?: string;
+  /** URL referenced by the ad. */
+  sourceUrl?: string;
+  /** Ad headline text. */
+  headline?: string;
+  /** Ad body text. */
+  body?: string;
+  /** Meta/WhatsApp ID of the ad media (not a Twilio Media SID). */
+  mediaId?: string;
+  /** Content type of the ad media. */
+  mediaContentType?: string;
+  /** URL of the ad media. */
+  mediaUrl?: string;
+  /** Number of media items in the ad. */
+  numMedia?: string;
+}
+
 export interface NormalizedWebhookEvent {
   type: 'message' | 'status_update' | 'conversation_created' | 'reaction';
   channelConversationId: string;
