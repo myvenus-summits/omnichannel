@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.9.0] - 2026-06-02
+
+### Added
+
+- `OmnichannelGateway.emitNewMessage` socket payload now includes `senderUserId`, so subscribers can distinguish sender identity (e.g., AI bot vs human staff) without a follow-up REST fetch.
+
 ## [1.0.0] - 2025-02-02
 
 ### 🚨 BREAKING CHANGES

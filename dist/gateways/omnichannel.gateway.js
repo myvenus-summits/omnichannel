@@ -36,6 +36,7 @@ let OmnichannelGateway = OmnichannelGateway_1 = class OmnichannelGateway {
                 channelMessageId: message.channelMessageId,
                 direction: message.direction,
                 senderName: message.senderName,
+                senderUserId: message.senderUserId,
                 contentType: message.contentType,
                 contentText: message.contentText,
                 contentMediaUrl: message.contentMediaUrl,
