@@ -76,6 +76,25 @@ export declare class InstagramAdapter implements ChannelAdapter {
      */
     private parseMessagingEvent;
     /**
+     * Extract Meta ad referral attributes from an inbound Instagram DM.
+     *
+     * Meta attaches `message.referral` ONLY when the DM originated from a Meta ad
+     * that clicks to Instagram DM. For organic messages it is absent, so this
+     * returns `undefined` and the message metadata is left byte-for-byte unchanged
+     * — keeping behaviour identical for non-ad traffic across every consuming
+     * service. Mapped into the shared {@link CtwaReferral} shape so downstream
+     * consumers read ad attribution the same way regardless of channel.
+     *
+     * Meta IG referral payload:
+     *   message.referral = {
+     *     ref?, ad_id?, source? (e.g. "ADS"), type? (e.g. "OPEN_THREAD"),
+     *     ads_context_data?: { ad_title?, photo_url?, video_url?, post_id? }
+     *   }
+     *
+     * https://developers.facebook.com/docs/messenger-platform/instagram/features/ads
+     */
+    private parseReferral;
+    /**
      * Determine content type from message
      */
     private determineContentType;
