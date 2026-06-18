@@ -9,10 +9,12 @@ import type {
   MessageDirection,
   MessageContentType,
   MessageStatus,
+  CtwaReferral,
 } from '../types';
 import type {
   InstagramWebhookDto,
   InstagramMessagingEvent,
+  InstagramMessage,
 } from '../dto/instagram-webhook.dto';
 import {
   OMNICHANNEL_MODULE_OPTIONS,
@@ -595,6 +597,10 @@ export class InstagramAdapter implements ChannelAdapter {
       const contentType = this.determineContentType(event.message);
       const mediaUrl = this.extractMediaUrl(event.message);
 
+      // Meta ad referral — present only when this DM originated from a Meta
+      // "click to Instagram DM" ad; undefined for organic messages.
+      const referral = this.parseReferral(event.message);
+
       return {
         type: 'message',
         channelConversationId: this.buildConversationId(contactIdentifier),
@@ -614,9 +620,21 @@ export class InstagramAdapter implements ChannelAdapter {
             isQuickReply: !!event.message.quick_reply,
             quickReplyPayload: event.message.quick_reply?.payload,
             instagramEntryId: entryId,
+            ...(referral ? { referral } : {}),
           },
         },
       };
+    }
+
+    // Standalone Meta ad referral — fired when an ad opens the thread before the
+    // user types. There is no message to attach metadata to, so we cannot emit a
+    // normalized message event; the referral is captured on the user's first DM
+    // (event.message.referral) instead. Log for observability and skip.
+    if (event.referral && !event.message) {
+      this.logger.debug(
+        `Instagram standalone ad referral: ad_id=${event.referral.ad_id ?? 'n/a'}, sender=${event.sender.id}`,
+      );
+      return null;
     }
 
     // Handle delivery event
@@ -671,6 +689,56 @@ export class InstagramAdapter implements ChannelAdapter {
     }
 
     return null;
+  }
+
+  /**
+   * Extract Meta ad referral attributes from an inbound Instagram DM.
+   *
+   * Meta attaches `message.referral` ONLY when the DM originated from a Meta ad
+   * that clicks to Instagram DM. For organic messages it is absent, so this
+   * returns `undefined` and the message metadata is left byte-for-byte unchanged
+   * — keeping behaviour identical for non-ad traffic across every consuming
+   * service. Mapped into the shared {@link CtwaReferral} shape so downstream
+   * consumers read ad attribution the same way regardless of channel.
+   *
+   * Meta IG referral payload:
+   *   message.referral = {
+   *     ref?, ad_id?, source? (e.g. "ADS"), type? (e.g. "OPEN_THREAD"),
+   *     ads_context_data?: { ad_title?, photo_url?, video_url?, post_id? }
+   *   }
+   *
+   * https://developers.facebook.com/docs/messenger-platform/instagram/features/ads
+   */
+  private parseReferral(message: InstagramMessage): CtwaReferral | undefined {
+    const ref = message.referral;
+    if (!ref) {
+      return undefined;
+    }
+
+    const adContext = ref.ads_context_data;
+    const entries: Array<[keyof CtwaReferral, string | undefined]> = [
+      ['sourceId', ref.ad_id],
+      ['sourceType', ref.source],
+      ['sourceUrl', ref.ref],
+      ['headline', adContext?.ad_title],
+      ['mediaUrl', adContext?.photo_url ?? adContext?.video_url],
+    ];
+
+    const referral: CtwaReferral = {};
+    for (const [key, value] of entries) {
+      if (value !== undefined && value !== null && value !== '') {
+        referral[key] = value;
+      }
+    }
+
+    if (Object.keys(referral).length === 0) {
+      return undefined;
+    }
+
+    this.logger.debug(
+      `Instagram ad referral parsed: sourceId=${referral.sourceId ?? 'n/a'}`,
+    );
+    return referral;
   }
 
   /**

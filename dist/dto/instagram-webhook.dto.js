@@ -9,7 +9,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.InstagramWebhookDto = exports.InstagramWebhookEntry = exports.InstagramMessagingEvent = exports.InstagramOptin = exports.InstagramReaction = exports.InstagramRead = exports.InstagramDelivery = exports.InstagramMessage = exports.InstagramMessageAttachment = exports.InstagramRecipient = exports.InstagramSender = void 0;
+exports.InstagramWebhookDto = exports.InstagramWebhookEntry = exports.InstagramMessagingEvent = exports.InstagramOptin = exports.InstagramReaction = exports.InstagramRead = exports.InstagramDelivery = exports.InstagramMessage = exports.InstagramReferral = exports.InstagramAdsContextData = exports.InstagramMessageAttachment = exports.InstagramRecipient = exports.InstagramSender = void 0;
 const swagger_1 = require("@nestjs/swagger");
 const class_validator_1 = require("class-validator");
 const class_transformer_1 = require("class-transformer");
@@ -49,6 +49,88 @@ __decorate([
     (0, swagger_1.ApiProperty)({ description: 'Attachment payload' }),
     __metadata("design:type", Object)
 ], InstagramMessageAttachment.prototype, "payload", void 0);
+/**
+ * Meta ad context attached to an ad-originated Instagram DM referral.
+ * Present only when the conversation started from a "click to Instagram DM" ad.
+ */
+class InstagramAdsContextData {
+    ad_title;
+    photo_url;
+    video_url;
+    post_id;
+}
+exports.InstagramAdsContextData = InstagramAdsContextData;
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({ description: 'Ad: title/headline text' }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], InstagramAdsContextData.prototype, "ad_title", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({ description: 'Ad: image media URL' }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], InstagramAdsContextData.prototype, "photo_url", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({ description: 'Ad: video media URL' }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], InstagramAdsContextData.prototype, "video_url", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({ description: 'Ad: source post ID' }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], InstagramAdsContextData.prototype, "post_id", void 0);
+/**
+ * Meta ad referral on an inbound Instagram DM.
+ *
+ * Sent by Meta ONLY when the inbound message originated from a Meta ad that
+ * clicks to Instagram DM. Must be declared (with its nested class) so the global
+ * ValidationPipe({ whitelist: true }) does not strip it before the adapter runs.
+ * https://developers.facebook.com/docs/messenger-platform/instagram/features/ads
+ */
+class InstagramReferral {
+    ref;
+    ad_id;
+    source;
+    type;
+    ads_context_data;
+}
+exports.InstagramReferral = InstagramReferral;
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({ description: 'Ad: referral ref string (m.me/ad ref)' }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], InstagramReferral.prototype, "ref", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({ description: 'Ad: Meta ad ID' }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], InstagramReferral.prototype, "ad_id", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({ description: 'Ad: referral source (e.g. "ADS")' }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], InstagramReferral.prototype, "source", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({ description: 'Ad: referral type (e.g. "OPEN_THREAD")' }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], InstagramReferral.prototype, "type", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({ description: 'Ad: nested ad context (title, media)' }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.ValidateNested)(),
+    (0, class_transformer_1.Type)(() => InstagramAdsContextData),
+    __metadata("design:type", InstagramAdsContextData)
+], InstagramReferral.prototype, "ads_context_data", void 0);
 class InstagramMessage {
     mid;
     text;
@@ -59,6 +141,7 @@ class InstagramMessage {
     is_echo;
     app_id;
     is_unsupported;
+    referral;
 }
 exports.InstagramMessage = InstagramMessage;
 __decorate([
@@ -108,6 +191,13 @@ __decorate([
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", Boolean)
 ], InstagramMessage.prototype, "is_unsupported", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({ description: 'Meta ad referral (ad-originated DM)' }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.ValidateNested)(),
+    (0, class_transformer_1.Type)(() => InstagramReferral),
+    __metadata("design:type", InstagramReferral)
+], InstagramMessage.prototype, "referral", void 0);
 class InstagramDelivery {
     mids;
     watermark;
@@ -177,6 +267,7 @@ class InstagramMessagingEvent {
     read;
     reaction;
     optin;
+    referral;
 }
 exports.InstagramMessagingEvent = InstagramMessagingEvent;
 __decorate([
@@ -230,6 +321,15 @@ __decorate([
     (0, class_transformer_1.Type)(() => InstagramOptin),
     __metadata("design:type", InstagramOptin)
 ], InstagramMessagingEvent.prototype, "optin", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({
+        description: 'Standalone Meta ad referral (ad opens thread before any message)',
+    }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.ValidateNested)(),
+    (0, class_transformer_1.Type)(() => InstagramReferral),
+    __metadata("design:type", InstagramReferral)
+], InstagramMessagingEvent.prototype, "referral", void 0);
 class InstagramWebhookEntry {
     id;
     time;

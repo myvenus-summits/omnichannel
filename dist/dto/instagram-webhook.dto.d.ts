@@ -14,6 +14,31 @@ export declare class InstagramMessageAttachment {
         url: string;
     };
 }
+/**
+ * Meta ad context attached to an ad-originated Instagram DM referral.
+ * Present only when the conversation started from a "click to Instagram DM" ad.
+ */
+export declare class InstagramAdsContextData {
+    ad_title?: string;
+    photo_url?: string;
+    video_url?: string;
+    post_id?: string;
+}
+/**
+ * Meta ad referral on an inbound Instagram DM.
+ *
+ * Sent by Meta ONLY when the inbound message originated from a Meta ad that
+ * clicks to Instagram DM. Must be declared (with its nested class) so the global
+ * ValidationPipe({ whitelist: true }) does not strip it before the adapter runs.
+ * https://developers.facebook.com/docs/messenger-platform/instagram/features/ads
+ */
+export declare class InstagramReferral {
+    ref?: string;
+    ad_id?: string;
+    source?: string;
+    type?: string;
+    ads_context_data?: InstagramAdsContextData;
+}
 export declare class InstagramMessage {
     mid: string;
     text?: string;
@@ -28,6 +53,7 @@ export declare class InstagramMessage {
     is_echo?: boolean;
     app_id?: number;
     is_unsupported?: boolean;
+    referral?: InstagramReferral;
 }
 export declare class InstagramDelivery {
     mids: string[];
@@ -54,6 +80,7 @@ export declare class InstagramMessagingEvent {
     read?: InstagramRead;
     reaction?: InstagramReaction;
     optin?: InstagramOptin;
+    referral?: InstagramReferral;
 }
 export declare class InstagramWebhookEntry {
     id: string;

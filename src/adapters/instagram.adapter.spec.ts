@@ -258,6 +258,83 @@ describe('InstagramAdapter', () => {
       expect(result?.message?.contentMediaUrl).toBe('https://cdn.instagram.com/image.jpg');
     });
 
+    it('should capture Meta ad referral into message metadata', () => {
+      const payload = {
+        object: 'instagram',
+        entry: [
+          {
+            id: 'PAGE123',
+            time: 1706608800000,
+            messaging: [
+              {
+                sender: { id: 'USER456' },
+                recipient: { id: 'PAGE123' },
+                timestamp: 1706608800000,
+                message: {
+                  mid: 'm_AD123',
+                  text: 'Hi, I saw your ad',
+                  referral: {
+                    ref: 'my-ad-ref',
+                    ad_id: '120209000000000',
+                    source: 'ADS',
+                    type: 'OPEN_THREAD',
+                    ads_context_data: {
+                      ad_title: 'Glow up at MyVenus',
+                      photo_url: 'https://cdn.instagram.com/ad-media.jpg',
+                      post_id: '17890000000000000',
+                    },
+                  },
+                },
+              },
+            ],
+          },
+        ],
+      };
+
+      const result = adapter.parseWebhookPayload(payload);
+
+      expect(result?.type).toBe('message');
+      expect(result?.message?.direction).toBe('inbound');
+      const referral = result?.message?.metadata?.referral as
+        | Record<string, string>
+        | undefined;
+      expect(referral).toBeDefined();
+      expect(referral?.sourceId).toBe('120209000000000');
+      expect(referral?.sourceType).toBe('ADS');
+      expect(referral?.sourceUrl).toBe('my-ad-ref');
+      expect(referral?.headline).toBe('Glow up at MyVenus');
+      expect(referral?.mediaUrl).toBe('https://cdn.instagram.com/ad-media.jpg');
+    });
+
+    it('should not attach referral metadata for organic (non-ad) messages', () => {
+      const payload = {
+        object: 'instagram',
+        entry: [
+          {
+            id: 'PAGE123',
+            time: 1706608800000,
+            messaging: [
+              {
+                sender: { id: 'USER456' },
+                recipient: { id: 'PAGE123' },
+                timestamp: 1706608800000,
+                message: {
+                  mid: 'm_ORGANIC',
+                  text: 'Just a normal message',
+                },
+              },
+            ],
+          },
+        ],
+      };
+
+      const result = adapter.parseWebhookPayload(payload);
+
+      expect(result?.type).toBe('message');
+      expect(result?.message?.metadata).toBeDefined();
+      expect(result?.message?.metadata).not.toHaveProperty('referral');
+    });
+
     it('should parse delivery event', () => {
       const payload = {
         object: 'instagram',

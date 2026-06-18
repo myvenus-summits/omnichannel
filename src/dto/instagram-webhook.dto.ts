@@ -30,6 +30,68 @@ export class InstagramMessageAttachment {
   };
 }
 
+/**
+ * Meta ad context attached to an ad-originated Instagram DM referral.
+ * Present only when the conversation started from a "click to Instagram DM" ad.
+ */
+export class InstagramAdsContextData {
+  @ApiPropertyOptional({ description: 'Ad: title/headline text' })
+  @IsOptional()
+  @IsString()
+  ad_title?: string;
+
+  @ApiPropertyOptional({ description: 'Ad: image media URL' })
+  @IsOptional()
+  @IsString()
+  photo_url?: string;
+
+  @ApiPropertyOptional({ description: 'Ad: video media URL' })
+  @IsOptional()
+  @IsString()
+  video_url?: string;
+
+  @ApiPropertyOptional({ description: 'Ad: source post ID' })
+  @IsOptional()
+  @IsString()
+  post_id?: string;
+}
+
+/**
+ * Meta ad referral on an inbound Instagram DM.
+ *
+ * Sent by Meta ONLY when the inbound message originated from a Meta ad that
+ * clicks to Instagram DM. Must be declared (with its nested class) so the global
+ * ValidationPipe({ whitelist: true }) does not strip it before the adapter runs.
+ * https://developers.facebook.com/docs/messenger-platform/instagram/features/ads
+ */
+export class InstagramReferral {
+  @ApiPropertyOptional({ description: 'Ad: referral ref string (m.me/ad ref)' })
+  @IsOptional()
+  @IsString()
+  ref?: string;
+
+  @ApiPropertyOptional({ description: 'Ad: Meta ad ID' })
+  @IsOptional()
+  @IsString()
+  ad_id?: string;
+
+  @ApiPropertyOptional({ description: 'Ad: referral source (e.g. "ADS")' })
+  @IsOptional()
+  @IsString()
+  source?: string;
+
+  @ApiPropertyOptional({ description: 'Ad: referral type (e.g. "OPEN_THREAD")' })
+  @IsOptional()
+  @IsString()
+  type?: string;
+
+  @ApiPropertyOptional({ description: 'Ad: nested ad context (title, media)' })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => InstagramAdsContextData)
+  ads_context_data?: InstagramAdsContextData;
+}
+
 export class InstagramMessage {
   @ApiProperty({ description: 'Message ID' })
   @IsString()
@@ -72,6 +134,12 @@ export class InstagramMessage {
   @ApiPropertyOptional({ description: 'Is unsupported' })
   @IsOptional()
   is_unsupported?: boolean;
+
+  @ApiPropertyOptional({ description: 'Meta ad referral (ad-originated DM)' })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => InstagramReferral)
+  referral?: InstagramReferral;
 }
 
 export class InstagramDelivery {
@@ -157,6 +225,14 @@ export class InstagramMessagingEvent {
   @ValidateNested()
   @Type(() => InstagramOptin)
   optin?: InstagramOptin;
+
+  @ApiPropertyOptional({
+    description: 'Standalone Meta ad referral (ad opens thread before any message)',
+  })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => InstagramReferral)
+  referral?: InstagramReferral;
 }
 
 export class InstagramWebhookEntry {
