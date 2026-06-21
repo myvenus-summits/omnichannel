@@ -215,11 +215,41 @@ let WhatsAppAdapter = WhatsAppAdapter_1 = class WhatsAppAdapter {
         }
     }
     /**
+     * Guarantee a non-empty, collision-resistant channel message id.
+     *
+     * Twilio's MessageSid/SmsMessageSid is effectively always present on real
+     * webhooks, but when it is missing we must never emit ''. Under the
+     * server-side ON CONFLICT upsert (MW-89) two distinct messages sharing the
+     * empty-string key would silently merge, and a status update keyed on ''
+     * could match the wrong stored row. The fallback is derived from stable
+     * payload fields so a retried webhook for the same message yields the same
+     * id (correct dedup) rather than a fresh duplicate.
+     */
+    ensureChannelMessageId(sid, ...fallbackParts) {
+        const trimmed = sid?.trim();
+        if (trimmed)
+            return trimmed;
+        const suffix = fallbackParts
+            .map((part) => part?.trim())
+            .filter((part) => !!part)
+            .join('-');
+        return `wa-fallback-${suffix || 'unknown'}`;
+    }
+    /**
      * Parse Twilio Conversations API webhook payload
      */
     parseConversationsApiPayload(twilioPayload) {
         if (twilioPayload.EventType === 'onMessageAdded') {
-            const direction = twilioPayload.Source === 'SDK' ? 'outbound' : 'inbound';
+            // Outbound when the message originated from our side. Source='SDK' covers
+            // Console/SDK sends, but REST API sends carry Source='API' — the same
+            // value an inbound customer message can have — so Source alone cannot
+            // disambiguate a self-echo from a customer message. Fall back to author
+            // identity: our own business WhatsApp number => outbound.
+            const author = twilioPayload.Author ?? '';
+            const direction = twilioPayload.Source === 'SDK' ||
+                (this.whatsappNumber !== '' && author.includes(this.whatsappNumber))
+                ? 'outbound'
+                : 'inbound';
             const contentType = twilioPayload.MediaContentType
                 ? this.mapMediaType(twilioPayload.MediaContentType)
                 : 'text';
@@ -228,7 +258,7 @@ let WhatsAppAdapter = WhatsAppAdapter_1 = class WhatsAppAdapter {
                 channelConversationId: twilioPayload.ConversationSid ?? '',
                 contactIdentifier: twilioPayload.Author ?? '',
                 message: {
-                    channelMessageId: twilioPayload.MessageSid ?? '',
+                    channelMessageId: this.ensureChannelMessageId(twilioPayload.MessageSid, twilioPayload.ConversationSid, twilioPayload.ParticipantSid, twilioPayload.DateCreated),
                     direction,
                     senderName: twilioPayload.Author ?? '',
                     contentType,
@@ -257,7 +287,7 @@ let WhatsAppAdapter = WhatsAppAdapter_1 = class WhatsAppAdapter {
                 channelConversationId: twilioPayload.ConversationSid ?? '',
                 contactIdentifier: '',
                 status: {
-                    messageId: twilioPayload.MessageSid ?? '',
+                    messageId: this.ensureChannelMessageId(twilioPayload.MessageSid, twilioPayload.ConversationSid),
                     status: this.mapTwilioStatus(twilioPayload.EventType ?? ''),
                 },
             };
@@ -279,7 +309,7 @@ let WhatsAppAdapter = WhatsAppAdapter_1 = class WhatsAppAdapter {
                 channelConversationId: from, // Use From as conversation identifier
                 contactIdentifier: from,
                 status: {
-                    messageId: messageSid ?? '',
+                    messageId: this.ensureChannelMessageId(messageSid, from, to),
                     status: this.mapMessagingApiStatus(twilioPayload.SmsStatus),
                     errorCode: twilioPayload.ErrorCode ? parseInt(twilioPayload.ErrorCode, 10) : undefined,
                     errorMessage: twilioPayload.ErrorMessage ?? undefined,
@@ -340,7 +370,7 @@ let WhatsAppAdapter = WhatsAppAdapter_1 = class WhatsAppAdapter {
             channelAccountId: businessNumber,
             contactName: twilioPayload.ProfileName ?? undefined,
             message: {
-                channelMessageId: messageSid ?? '',
+                channelMessageId: this.ensureChannelMessageId(messageSid, from, to, twilioPayload.WaId),
                 direction,
                 senderName,
                 contentType,

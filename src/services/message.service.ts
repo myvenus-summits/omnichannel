@@ -224,7 +224,9 @@ export class MessageService {
 
     const message = await this.create({
       conversationId,
-      channelMessageId: result.channelMessageId ?? `local-${Date.now()}`,
+      // `||` (not `??`) so an empty-string channelMessageId from the adapter
+      // also falls back — `??` only catches null/undefined and would let '' pass.
+      channelMessageId: result.channelMessageId || `local-${Date.now()}`,
       direction: 'outbound',
       senderUserId,
       contentType: dto.contentType,

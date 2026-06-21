@@ -224,6 +224,27 @@ describe('MessageService', () => {
       expect(mockConversationService.updateLastMessage).toHaveBeenCalled();
     });
 
+    it('should fall back to a local id when the adapter returns an empty channelMessageId', async () => {
+      // Regression (MW-90 Bug 1): the send path must never persist '' — `||`
+      // (not `??`) ensures an empty-string send result also gets a local id.
+      mockWhatsAppAdapter.sendMessage.mockResolvedValue({
+        success: true,
+        channelMessageId: '',
+      });
+      mockMessageRepository.create.mockResolvedValue({} as IMessage);
+
+      await service.sendMessage(1, {
+        contentType: 'text',
+        contentText: 'Hello',
+      });
+
+      expect(mockMessageRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          channelMessageId: expect.stringMatching(/^local-/),
+        }),
+      );
+    });
+
     it('should send an image message', async () => {
       mockWhatsAppAdapter.sendMessage.mockResolvedValue({
         success: true,
