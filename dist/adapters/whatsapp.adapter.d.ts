@@ -34,6 +34,18 @@ export declare class WhatsAppAdapter implements ChannelAdapter {
     sendTemplateMessage(to: string, templateId: string, variables: Record<string, string>, credentials?: AdapterCredentialsOverride): Promise<SendMessageResult>;
     parseWebhookPayload(payload: unknown): NormalizedWebhookEvent | null;
     /**
+     * Guarantee a non-empty, collision-resistant channel message id.
+     *
+     * Twilio's MessageSid/SmsMessageSid is effectively always present on real
+     * webhooks, but when it is missing we must never emit ''. Under the
+     * server-side ON CONFLICT upsert (MW-89) two distinct messages sharing the
+     * empty-string key would silently merge, and a status update keyed on ''
+     * could match the wrong stored row. The fallback is derived from stable
+     * payload fields so a retried webhook for the same message yields the same
+     * id (correct dedup) rather than a fresh duplicate.
+     */
+    private ensureChannelMessageId;
+    /**
      * Parse Twilio Conversations API webhook payload
      */
     private parseConversationsApiPayload;

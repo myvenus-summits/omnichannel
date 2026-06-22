@@ -223,6 +223,109 @@ describe('WhatsAppAdapter', () => {
       expect(result?.message?.direction).toBe('outbound');
     });
 
+    it('should classify REST API self-echo (Source=API from our number) as outbound', () => {
+      // Regression (MW-90 Bug 2): a message we send via the REST API is echoed
+      // back with Source='API' — the same value inbound customer messages carry.
+      // Author identity (our business number) must drive the direction.
+      const payload = {
+        EventType: 'onMessageAdded',
+        ConversationSid: 'CH123456789',
+        MessageSid: 'IM555000111',
+        Author: 'whatsapp:+14155551234', // our business number (mockOptions)
+        Body: 'Reply sent via REST API',
+        Source: 'API',
+        DateCreated: '2024-01-30T10:05:00Z',
+      };
+
+      const result = adapter.parseWebhookPayload(payload);
+
+      expect(result?.message?.direction).toBe('outbound');
+    });
+
+    it('should keep customer message (Source=API from customer number) as inbound', () => {
+      // Guards the fix above from over-classifying: a customer message also has
+      // Source='API' but a non-business Author, so it must stay inbound.
+      const payload = {
+        EventType: 'onMessageAdded',
+        ConversationSid: 'CH123456789',
+        MessageSid: 'IM555000222',
+        Author: 'whatsapp:+821099998888',
+        Body: 'Customer message',
+        Source: 'API',
+        DateCreated: '2024-01-30T10:06:00Z',
+      };
+
+      const result = adapter.parseWebhookPayload(payload);
+
+      expect(result?.message?.direction).toBe('inbound');
+    });
+
+    it('should synthesize a deterministic id when MessageSid is missing or blank', () => {
+      // Regression (MW-90 Bug 1): a missing/blank MessageSid must not become ''
+      // (which would silently merge distinct messages under the server upsert).
+      const base = {
+        EventType: 'onMessageAdded',
+        ConversationSid: 'CH123456789',
+        Author: 'whatsapp:+821012345678',
+        Body: 'No sid here',
+        Source: 'API',
+        ParticipantSid: 'MB000111',
+        DateCreated: '2024-01-30T10:07:00Z',
+      };
+
+      const missing = adapter.parseWebhookPayload({ ...base });
+      const blank = adapter.parseWebhookPayload({ ...base, MessageSid: '   ' });
+
+      const id = missing?.message?.channelMessageId;
+      expect(id).toBeTruthy();
+      expect(id).not.toBe('');
+      expect(id).toMatch(/^wa-fallback-/);
+      // Blank string is treated the same as missing.
+      expect(blank?.message?.channelMessageId).toBe(id);
+      // Deterministic: same payload → same id (so retried webhooks dedup).
+      expect(adapter.parseWebhookPayload({ ...base })?.message?.channelMessageId).toBe(id);
+    });
+
+    it('should produce distinct fallback ids for distinct sid-less messages', () => {
+      // Two different messages (different ParticipantSid) must not collapse to
+      // one id — otherwise the empty-string merge bug just moves to the fallback.
+      const a = adapter.parseWebhookPayload({
+        EventType: 'onMessageAdded',
+        ConversationSid: 'CH123456789',
+        Author: 'whatsapp:+821012345678',
+        Body: 'first',
+        ParticipantSid: 'MB000111',
+        DateCreated: '2024-01-30T10:08:00Z',
+      });
+      const b = adapter.parseWebhookPayload({
+        EventType: 'onMessageAdded',
+        ConversationSid: 'CH123456789',
+        Author: 'whatsapp:+821012345678',
+        Body: 'second',
+        ParticipantSid: 'MB000222',
+        DateCreated: '2024-01-30T10:09:00Z',
+      });
+
+      expect(a?.message?.channelMessageId).not.toBe(b?.message?.channelMessageId);
+    });
+
+    it('should synthesize a non-empty id for a Messaging API message missing SmsMessageSid', () => {
+      const payload = {
+        From: 'whatsapp:+821012345678',
+        To: 'whatsapp:+14155551234',
+        Body: 'Sandbox message without sid',
+        NumMedia: '0',
+        WaId: '821012345678',
+      };
+
+      const result = adapter.parseWebhookPayload(payload);
+
+      const id = result?.message?.channelMessageId;
+      expect(id).toBeTruthy();
+      expect(id).not.toBe('');
+      expect(id).toMatch(/^wa-fallback-/);
+    });
+
     it('should parse onConversationAdded event', () => {
       const payload = {
         EventType: 'onConversationAdded',
