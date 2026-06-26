@@ -361,8 +361,18 @@ export class MasterTemplateService {
           config,
         );
       } catch (error: any) {
+        // 404 = 이미 Twilio에 콘텐츠가 없음 → 무시하고 기록 삭제 진행
+        if (error?.status !== 404 && error?.code !== 20404) {
+          // 그 외 오류(네트워크/인증/rate limit 등)는 콘텐츠가 살아있을 수 있으므로
+          // DB 기록을 지우지 않고 중단한다. (orphan Twilio 콘텐츠 방지)
+          this.logger.error(
+            `Failed to delete Twilio template ${deployment.twilioContentSid}: ${error.message}`,
+            error.stack,
+          );
+          throw error;
+        }
         this.logger.warn(
-          `Failed to delete Twilio template ${deployment.twilioContentSid}: ${error.message}`,
+          `Twilio template ${deployment.twilioContentSid} already absent (404). Removing deployment record.`,
         );
       }
     }
