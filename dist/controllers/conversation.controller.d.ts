@@ -15,6 +15,7 @@ export declare class ConversationController {
     resendMessage(id: number, messageId: number): Promise<import("..").IMessage>;
     syncMessages(id: number): Promise<{
         synced: number;
+        lastInboundAt: Date | null;
     }>;
     assign(id: number, dto: AssignDto): Promise<import("..").IConversation>;
     updateTags(id: number, dto: UpdateTagsDto): Promise<import("..").IConversation>;

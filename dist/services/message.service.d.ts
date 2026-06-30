@@ -44,6 +44,7 @@ export declare class MessageService {
      */
     syncMessages(conversationId: number): Promise<{
         synced: number;
+        lastInboundAt: Date | null;
     }>;
     /**
      * @deprecated syncMessages()를 사용하세요
