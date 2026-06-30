@@ -244,7 +244,15 @@ let MessageService = MessageService_1 = class MessageService {
         let synced = 0;
         let newestSyncedTimestamp = null;
         let newestSyncedPreview = null;
+        // 동기화로 확인된 inbound 메시지의 최신 시각 (이미 저장된 메시지 포함) — 메시징 윈도우(lastInboundAt) 보정용
+        let newestInboundTimestamp = null;
         for (const msg of channelMessages) {
+            // inbound 최신 시각은 이미 저장된 메시지여도 추적 — webhook 누락분을 sync 로 받았을 때
+            // 메시징 윈도우(lastInboundAt)가 올바르게 리셋되도록 보정한다.
+            if (msg.direction === 'inbound' &&
+                (!newestInboundTimestamp || msg.timestamp > newestInboundTimestamp)) {
+                newestInboundTimestamp = msg.timestamp;
+            }
             const existing = await this.messageRepository.findByChannelMessageId(msg.channelMessageId);
             if (existing)
                 continue;
@@ -276,8 +284,20 @@ let MessageService = MessageService_1 = class MessageService {
                 await this.conversationService.updateLastMessage(conversationId, newestSyncedPreview ?? '[Media]', newestSyncedTimestamp);
             }
         }
+        // 메시징 윈도우 보정: 동기화로 확인된 inbound 가 기존 lastInboundAt 보다 최신이면 갱신.
+        // webhook 누락으로 lastInboundAt 이 멈춘 대화도 수동 sync 시 24h 윈도우가 올바르게 리셋된다.
+        const currentLastInboundAt = conversation.lastInboundAt
+            ? new Date(conversation.lastInboundAt)
+            : null;
+        if (newestInboundTimestamp &&
+            (!currentLastInboundAt || newestInboundTimestamp > currentLastInboundAt)) {
+            await this.conversationService.update(conversationId, {
+                lastInboundAt: newestInboundTimestamp,
+            });
+            conversation.lastInboundAt = newestInboundTimestamp;
+        }
         this.logger.log(`Synced ${synced} ${channel} messages for conversation ${conversationId}`);
-        return { synced };
+        return { synced, lastInboundAt: conversation.lastInboundAt ?? null };
     }
     /**
      * @deprecated syncMessages()를 사용하세요
