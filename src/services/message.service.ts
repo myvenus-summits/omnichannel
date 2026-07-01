@@ -417,17 +417,23 @@ export class MessageService {
 
     // 메시징 윈도우 보정: 동기화로 확인된 inbound 가 기존 lastInboundAt 보다 최신이면 갱신.
     // webhook 누락으로 lastInboundAt 이 멈춘 대화도 수동 sync 시 24h 윈도우가 올바르게 리셋된다.
-    const currentLastInboundAt = conversation.lastInboundAt
-      ? new Date(conversation.lastInboundAt)
-      : null;
-    if (
-      newestInboundTimestamp &&
-      (!currentLastInboundAt || newestInboundTimestamp > currentLastInboundAt)
-    ) {
-      await this.conversationService.update(conversationId, {
-        lastInboundAt: newestInboundTimestamp,
-      });
-      conversation.lastInboundAt = newestInboundTimestamp;
+    if (newestInboundTimestamp) {
+      // entry 시점 스냅샷이 아니라 직전에 재조회한 값과 비교한다 — sync round-trip(채널 API
+      // fetch + 메시지 저장 루프) 동안 webhook 이 더 최신 inbound 로 lastInboundAt 을 올렸을
+      // 수 있어, 그 값을 과거로 덮어쓰지 않도록 한다 (stale-read lost update 방지).
+      const fresh = await this.conversationService.findOne(conversationId);
+      const currentLastInboundAt = fresh.lastInboundAt
+        ? new Date(fresh.lastInboundAt)
+        : null;
+      if (!currentLastInboundAt || newestInboundTimestamp > currentLastInboundAt) {
+        await this.conversationService.update(conversationId, {
+          lastInboundAt: newestInboundTimestamp,
+        });
+        conversation.lastInboundAt = newestInboundTimestamp;
+      } else {
+        // DB 에 이미 더 최신 값이 있으면 그 값을 응답에 반영 (덮어쓰지 않음)
+        conversation.lastInboundAt = fresh.lastInboundAt;
+      }
     }
 
     this.logger.log(`Synced ${synced} ${channel} messages for conversation ${conversationId}`);
