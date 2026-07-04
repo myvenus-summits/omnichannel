@@ -37,7 +37,19 @@ class TwilioWebhookDto {
     WaId;
     NumMedia;
     NumSegments;
+    // ButtonPayload doubles as (a) the emoji of a reaction (paired with
+    // OriginalRepliedMessageSid and no Body) and (b) the quick-reply button *id*
+    // when a customer taps an interactive template button (MV-497). ButtonText is
+    // the tapped button's visible title. Declared explicitly for type-safety and
+    // MaxLength validation, and so a consumer running the ValidationPipe with
+    // `whitelist: true` does not strip them before the adapter reads them.
+    // MaxLength bounds the value used as a downstream routing key — a defensive
+    // cap against pathological input if the webhook signature guard is ever
+    // bypassed. 256 covers both a reaction emoji and the longest WhatsApp button
+    // id. The authoritative allow-list (known button ids) belongs to the consumer
+    // that routes on it, not this generic library.
     ButtonPayload;
+    ButtonText;
     // ===== Click-to-WhatsApp (CTWA) ad referral fields =====
     // Sent by Twilio ONLY when the inbound message originated from a Meta
     // "Click to WhatsApp" ad. Must be declared here so the global ValidationPipe
@@ -177,11 +189,23 @@ __decorate([
     __metadata("design:type", String)
 ], TwilioWebhookDto.prototype, "NumSegments", void 0);
 __decorate([
-    (0, swagger_1.ApiPropertyOptional)({ description: 'Button payload (WhatsApp reactions)' }),
+    (0, swagger_1.ApiPropertyOptional)({
+        description: 'Button payload — reaction emoji OR quick-reply button id',
+    }),
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),
+    (0, class_validator_1.MaxLength)(256),
     __metadata("design:type", String)
 ], TwilioWebhookDto.prototype, "ButtonPayload", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({
+        description: 'Button text — visible title of a tapped quick-reply button',
+    }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.MaxLength)(256),
+    __metadata("design:type", String)
+], TwilioWebhookDto.prototype, "ButtonText", void 0);
 __decorate([
     (0, swagger_1.ApiPropertyOptional)({ description: 'CTWA ad: Meta-generated click ID (ctwa_clid)' }),
     (0, class_validator_1.IsOptional)(),

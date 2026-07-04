@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { IsNotEmpty, IsOptional, IsString, MaxLength } from 'class-validator';
 
 /**
  * Twilio Conversations API Webhook Payload
@@ -103,10 +103,32 @@ export class TwilioWebhookDto {
   @IsString()
   NumSegments?: string;
 
-  @ApiPropertyOptional({ description: 'Button payload (WhatsApp reactions)' })
+  // ButtonPayload doubles as (a) the emoji of a reaction (paired with
+  // OriginalRepliedMessageSid and no Body) and (b) the quick-reply button *id*
+  // when a customer taps an interactive template button (MV-497). ButtonText is
+  // the tapped button's visible title. Declared explicitly for type-safety and
+  // MaxLength validation, and so a consumer running the ValidationPipe with
+  // `whitelist: true` does not strip them before the adapter reads them.
+  // MaxLength bounds the value used as a downstream routing key — a defensive
+  // cap against pathological input if the webhook signature guard is ever
+  // bypassed. 256 covers both a reaction emoji and the longest WhatsApp button
+  // id. The authoritative allow-list (known button ids) belongs to the consumer
+  // that routes on it, not this generic library.
+  @ApiPropertyOptional({
+    description: 'Button payload — reaction emoji OR quick-reply button id',
+  })
   @IsOptional()
   @IsString()
+  @MaxLength(256)
   ButtonPayload?: string;
+
+  @ApiPropertyOptional({
+    description: 'Button text — visible title of a tapped quick-reply button',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(256)
+  ButtonText?: string;
 
   // ===== Click-to-WhatsApp (CTWA) ad referral fields =====
   // Sent by Twilio ONLY when the inbound message originated from a Meta

@@ -152,6 +152,77 @@ describe('WebhookService', () => {
       expect(mockGateway.emitConversationUpdate).toHaveBeenCalled();
     });
 
+    it('should pass inbound message metadata (quick-reply button id) through to the repository', async () => {
+      // Guards the button-routing contract: the buttonPayload the adapter captures
+      // must survive the webhook -> messageRepository.create hop unchanged, since
+      // downstream routing keys on it. A future refactor dropping metadata here
+      // would otherwise pass every other test silently.
+      const mockEvent = {
+        type: 'message' as const,
+        channelConversationId: 'CH123',
+        contactIdentifier: '+821012345678',
+        message: {
+          channelMessageId: 'IM_BTN',
+          direction: 'inbound' as const,
+          senderName: 'Customer',
+          contentType: 'text' as const,
+          contentText: 'Sudah ada planning',
+          timestamp: new Date(),
+          metadata: {
+            buttonPayload: 'stage_planning',
+            buttonText: 'Sudah ada planning',
+          },
+        },
+      };
+
+      mockWhatsAppAdapter.parseWebhookPayload.mockReturnValue(mockEvent);
+
+      const mockConversation: IConversation = {
+        id: 1,
+        channel: 'whatsapp',
+        channelConversationId: 'CH123',
+        contactIdentifier: '+821012345678',
+        contactName: null,
+        status: 'open',
+        tags: [],
+        assignedUserId: null,
+        unreadCount: 0,
+        lastMessageAt: null,
+        lastMessagePreview: null,
+        metadata: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      const mockMessage: IMessage = {
+        id: 1,
+        conversationId: 1,
+        channelMessageId: 'IM_BTN',
+        direction: 'inbound',
+        senderName: 'Customer',
+        senderUserId: null,
+        contentType: 'text',
+        contentText: 'Sudah ada planning',
+        contentMediaUrl: null,
+        status: 'delivered',
+        metadata: { buttonPayload: 'stage_planning', buttonText: 'Sudah ada planning' },
+        createdAt: new Date(),
+      };
+
+      mockConversationRepository.findByChannelConversationId.mockResolvedValue(null);
+      mockConversationRepository.create.mockResolvedValue(mockConversation);
+      mockConversationRepository.update.mockResolvedValue({ ...mockConversation, unreadCount: 1 });
+      mockMessageRepository.findByChannelMessageId.mockResolvedValue(null);
+      mockMessageRepository.create.mockResolvedValue(mockMessage);
+
+      await service.handleTwilioWebhook({ EventType: 'onMessageAdded' });
+
+      expect(mockMessageRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          metadata: expect.objectContaining({ buttonPayload: 'stage_planning' }),
+        }),
+      );
+    });
+
     it('should handle existing conversation', async () => {
       const mockEvent = {
         type: 'message' as const,
