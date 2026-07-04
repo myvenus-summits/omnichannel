@@ -385,6 +385,17 @@ let WhatsAppAdapter = WhatsAppAdapter_1 = class WhatsAppAdapter {
                     numMedia,
                     numSegments: twilioPayload.NumSegments,
                     ...(referral ? { referral } : {}),
+                    // Interactive quick-reply button tap (MV-497): Twilio delivers the tap
+                    // as a normal inbound message with Body=button title, plus ButtonPayload
+                    // (the stable button id) and ButtonText (the visible title). Preserve the
+                    // id here so downstream routing keys on a language/copy-independent value
+                    // instead of the translatable title text. Absent for ordinary messages.
+                    // Known limitation: like `referral`, these are webhook-only. A message
+                    // recovered via the REST sync path (fetchMessagesViaMessagingApi) carries
+                    // no button data, so a consumer routing on buttonPayload must degrade
+                    // gracefully when it is absent.
+                    ...(buttonPayload ? { buttonPayload } : {}),
+                    ...(twilioPayload.ButtonText ? { buttonText: twilioPayload.ButtonText } : {}),
                 },
             },
         };

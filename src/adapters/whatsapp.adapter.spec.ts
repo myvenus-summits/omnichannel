@@ -426,6 +426,72 @@ describe('WhatsAppAdapter', () => {
       expect(result?.message?.metadata).not.toHaveProperty('referral');
     });
 
+    it('should capture a quick-reply button tap id into message metadata', () => {
+      // MV-497: an interactive template button tap arrives as a normal inbound
+      // message — Body is the button's visible title, ButtonPayload is the stable
+      // button id, and ButtonText is the title. We preserve the id so downstream
+      // routing keys on a language/copy-independent value.
+      const payload = {
+        SmsMessageSid: 'SM222333444',
+        MessageSid: 'SM222333444',
+        From: 'whatsapp:+821012345678',
+        To: 'whatsapp:+14155551234',
+        ProfileName: 'Jane Doe',
+        Body: 'Sudah ada planning',
+        ButtonText: 'Sudah ada planning',
+        ButtonPayload: 'stage_planning',
+        NumMedia: '0',
+      };
+
+      const result = adapter.parseWebhookPayload(payload);
+
+      expect(result?.type).toBe('message');
+      expect(result?.message?.direction).toBe('inbound');
+      expect(result?.message?.contentText).toBe('Sudah ada planning');
+      expect(result?.message?.metadata?.buttonPayload).toBe('stage_planning');
+      expect(result?.message?.metadata?.buttonText).toBe('Sudah ada planning');
+    });
+
+    it('should not attach button metadata for ordinary text messages', () => {
+      const payload = {
+        SmsMessageSid: 'SM333444555',
+        MessageSid: 'SM333444555',
+        From: 'whatsapp:+821012345678',
+        To: 'whatsapp:+14155551234',
+        ProfileName: 'Jane Doe',
+        Body: 'Just a normal message',
+        NumMedia: '0',
+      };
+
+      const result = adapter.parseWebhookPayload(payload);
+
+      expect(result?.type).toBe('message');
+      expect(result?.message?.metadata).toBeDefined();
+      expect(result?.message?.metadata).not.toHaveProperty('buttonPayload');
+      expect(result?.message?.metadata).not.toHaveProperty('buttonText');
+    });
+
+    it('should still classify an emoji reaction (ButtonPayload, no Body, reply sid) as a reaction', () => {
+      // Regression: capturing the button id on the normal-message path must not
+      // change how emoji reactions are detected — those carry ButtonPayload with
+      // no Body and an OriginalRepliedMessageSid, and must stay type 'reaction'.
+      const payload = {
+        SmsMessageSid: 'SM444555666',
+        MessageSid: 'SM444555666',
+        From: 'whatsapp:+821012345678',
+        To: 'whatsapp:+14155551234',
+        ButtonPayload: '👍',
+        OriginalRepliedMessageSid: 'SM000111222',
+        NumMedia: '0',
+      };
+
+      const result = adapter.parseWebhookPayload(payload);
+
+      expect(result?.type).toBe('reaction');
+      expect(result?.reaction?.emoji).toBe('👍');
+      expect(result?.reaction?.targetMessageId).toBe('SM000111222');
+    });
+
     it('should return null for unknown event type', () => {
       const payload = {
         EventType: 'unknownEvent',
