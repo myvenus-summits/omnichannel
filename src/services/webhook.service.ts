@@ -281,8 +281,11 @@ export class WebhookService {
       }
     }
 
-    // Transform media URL (e.g., Twilio → S3)
+    // Transform media URL (e.g., Twilio → S3). May also return parsed
+    // metadata (e.g. vCard name/phone) to merge into the message record —
+    // see mediaUrlTransformer's JSDoc for the string | {url, metadata} contract.
     let mediaUrl = event.message.contentMediaUrl ?? null;
+    let transformedMetadata: Record<string, unknown> | null = null;
     if (mediaUrl && this.mediaUrlTransformer) {
       // preResolvedConfig 우선, 없으면 resolver에서 resolve한 정보로 구성
       const effectiveConfig: ResolvedChannelConfig | null = preResolvedConfig
@@ -292,11 +295,17 @@ export class WebhookService {
 
       if (effectiveConfig) {
         try {
-          mediaUrl = await this.mediaUrlTransformer(
+          const result = await this.mediaUrlTransformer(
             mediaUrl,
             event.message.contentType ?? 'image',
             effectiveConfig,
           );
+          if (typeof result === 'string') {
+            mediaUrl = result;
+          } else {
+            mediaUrl = result.url;
+            transformedMetadata = result.metadata ?? null;
+          }
         } catch (error) {
           this.logger.warn(`Media URL transform failed, storing null: ${error}`);
           mediaUrl = null;
@@ -316,7 +325,9 @@ export class WebhookService {
       replyToMessageId,
       replyToPreview,
       status: event.message.direction === 'inbound' ? 'delivered' : 'sent',
-      metadata: event.message.metadata ?? null,
+      metadata: (event.message.metadata || transformedMetadata)
+        ? { ...event.message.metadata, ...transformedMetadata }
+        : null,
       createdAt: event.message.timestamp,
     });
 

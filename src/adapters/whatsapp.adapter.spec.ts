@@ -370,6 +370,60 @@ describe('WhatsAppAdapter', () => {
       expect(result?.message?.contentMediaUrl).toBe('https://twilio.com/media/123.jpg');
     });
 
+    it('should classify a voice note (audio/ogg) as audio, not file', () => {
+      const payload = {
+        EventType: 'onMessageAdded',
+        ConversationSid: 'CH123456789',
+        MessageSid: 'IM_AUDIO',
+        Author: 'whatsapp:+821012345678',
+        Body: '',
+        MediaContentType: 'audio/ogg',
+        MediaUrl: 'https://twilio.com/media/voice.ogg',
+        Source: 'API',
+        DateCreated: '2024-01-30T10:00:00Z',
+      };
+
+      const result = adapter.parseWebhookPayload(payload);
+
+      expect(result?.message?.contentType).toBe('audio');
+    });
+
+    it('should classify a shared vCard (text/vcard) as contact, not file', () => {
+      const payload = {
+        EventType: 'onMessageAdded',
+        ConversationSid: 'CH123456789',
+        MessageSid: 'IM_VCARD',
+        Author: 'whatsapp:+821012345678',
+        Body: '',
+        MediaContentType: 'text/vcard',
+        MediaUrl: 'https://twilio.com/media/contact.vcf',
+        Source: 'API',
+        DateCreated: '2024-01-30T10:00:00Z',
+      };
+
+      const result = adapter.parseWebhookPayload(payload);
+
+      expect(result?.message?.contentType).toBe('contact');
+    });
+
+    it('should still classify an unrecognized MIME type as file (fallback)', () => {
+      const payload = {
+        EventType: 'onMessageAdded',
+        ConversationSid: 'CH123456789',
+        MessageSid: 'IM_DOC',
+        Author: 'whatsapp:+821012345678',
+        Body: '',
+        MediaContentType: 'application/pdf',
+        MediaUrl: 'https://twilio.com/media/doc.pdf',
+        Source: 'API',
+        DateCreated: '2024-01-30T10:00:00Z',
+      };
+
+      const result = adapter.parseWebhookPayload(payload);
+
+      expect(result?.message?.contentType).toBe('file');
+    });
+
     it('should capture Click-to-WhatsApp ad referral into message metadata', () => {
       const payload = {
         SmsMessageSid: 'SM123456789',

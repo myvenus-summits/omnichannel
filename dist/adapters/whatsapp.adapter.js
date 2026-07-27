@@ -544,10 +544,19 @@ let WhatsAppAdapter = WhatsAppAdapter_1 = class WhatsAppAdapter {
         return token.toJwt();
     }
     mapMediaType(contentType) {
-        if (contentType.startsWith('image/'))
+        const normalized = contentType.toLowerCase();
+        if (normalized.startsWith('image/'))
             return 'image';
-        if (contentType.startsWith('video/'))
+        if (normalized.startsWith('video/'))
             return 'video';
+        if (normalized.startsWith('audio/'))
+            return 'audio';
+        // WhatsApp "Share Contact" 첨부 — Twilio 는 vCard 를 이 MIME 타입들로 전달한다.
+        if (normalized.startsWith('text/vcard') ||
+            normalized.startsWith('text/x-vcard') ||
+            normalized.startsWith('text/directory')) {
+            return 'contact';
+        }
         return 'file';
     }
     mapTwilioStatus(eventType) {
