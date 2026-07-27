@@ -12,6 +12,8 @@ export type MessageContentType =
   | 'text'
   | 'image'
   | 'video'
+  | 'audio'
+  | 'contact'
   | 'file'
   | 'template';
 

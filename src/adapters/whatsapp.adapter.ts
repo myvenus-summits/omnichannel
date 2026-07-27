@@ -695,8 +695,18 @@ export class WhatsAppAdapter implements ChannelAdapter {
   }
 
   private mapMediaType(contentType: string): MessageContentType {
-    if (contentType.startsWith('image/')) return 'image';
-    if (contentType.startsWith('video/')) return 'video';
+    const normalized = contentType.toLowerCase();
+    if (normalized.startsWith('image/')) return 'image';
+    if (normalized.startsWith('video/')) return 'video';
+    if (normalized.startsWith('audio/')) return 'audio';
+    // WhatsApp "Share Contact" 첨부 — Twilio 는 vCard 를 이 MIME 타입들로 전달한다.
+    if (
+      normalized.startsWith('text/vcard') ||
+      normalized.startsWith('text/x-vcard') ||
+      normalized.startsWith('text/directory')
+    ) {
+      return 'contact';
+    }
     return 'file';
   }
 

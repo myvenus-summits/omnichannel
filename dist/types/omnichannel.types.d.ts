@@ -4,7 +4,7 @@
 export type ChannelType = 'whatsapp' | 'instagram' | 'line';
 export type ConversationStatus = 'open' | 'closed' | 'snoozed';
 export type MessageDirection = 'inbound' | 'outbound';
-export type MessageContentType = 'text' | 'image' | 'video' | 'file' | 'template';
+export type MessageContentType = 'text' | 'image' | 'video' | 'audio' | 'contact' | 'file' | 'template';
 export type MessageStatus = 'pending' | 'sent' | 'delivered' | 'read' | 'failed';
 export interface MessageContent {
     type: 'text' | 'image' | 'file';

@@ -236,14 +236,18 @@ export interface OmnichannelModuleOptions {
   /**
    * 수신 미디어 URL을 변환하는 훅 (예: Twilio URL → S3 업로드)
    * @param url - 원본 미디어 URL
-   * @param contentType - 미디어 타입 (image, video, file)
+   * @param contentType - 미디어 타입 (image, video, audio, contact, file)
    * @param config - 채널 설정 (twilio credentials 포함)
+   * @returns 변환된 URL 문자열, 또는 URL과 함께 메시지 metadata 에 병합할 부가
+   *   정보를 담은 객체(예: vCard 파싱 결과인 contactName/contactPhone).
+   *   메타데이터가 필요없는 케이스(image/video/file 등)는 기존처럼 문자열만
+   *   반환하면 된다 — 하위 호환.
    */
   mediaUrlTransformer?: (
     url: string,
     contentType: string,
     config: ResolvedChannelConfig,
-  ) => Promise<string>;
+  ) => Promise<string | { url: string; metadata?: Record<string, unknown> }>;
 }
 
 /**
