@@ -19,7 +19,8 @@ const twilio_1 = require("twilio");
 const interfaces_1 = require("../interfaces");
 const { AccessToken } = twilio_1.jwt;
 const { ChatGrant } = AccessToken;
-let WhatsAppAdapter = WhatsAppAdapter_1 = class WhatsAppAdapter {
+let WhatsAppAdapter = class WhatsAppAdapter {
+    static { WhatsAppAdapter_1 = this; }
     options;
     logger = new common_1.Logger(WhatsAppAdapter_1.name);
     client = null;
@@ -28,12 +29,24 @@ let WhatsAppAdapter = WhatsAppAdapter_1 = class WhatsAppAdapter {
     apiKeySid;
     apiKeySecret;
     accountSid;
+    authToken;
     appUrl;
+    /**
+     * 채널별 Twilio 클라이언트 캐시. 키는 `accountSid:authToken` 자격증명 쌍이다.
+     *
+     * 캐시가 없으면 채널 설정이 자격증명을 들고 있는 한 **메시지 한 건마다**
+     * `new Twilio()` 를 만들게 된다 — 그때마다 새 HTTP 에이전트가 생겨 keep-alive
+     * 가 무의미해지고, 대량 발송에서 소켓이 쌓인다.
+     */
+    clientCache = new Map();
+    /** 캐시 상한. 채널 수 + 로테이션으로 남는 옛 항목을 감안한 여유값. */
+    static MAX_CACHED_CLIENTS = 32;
     channel = 'whatsapp';
     constructor(options) {
         this.options = options;
         const twilio = options?.twilio;
         this.accountSid = twilio?.accountSid ?? '';
+        this.authToken = twilio?.authToken ?? '';
         this.conversationsServiceSid = twilio?.conversationsServiceSid ?? '';
         this.whatsappNumber = twilio?.whatsappNumber ?? '';
         this.apiKeySid = twilio?.apiKeySid ?? '';
@@ -47,22 +60,49 @@ let WhatsAppAdapter = WhatsAppAdapter_1 = class WhatsAppAdapter {
         }
     }
     /**
-     * Resolve Twilio client: override credentials가 기본값과 다르면 새 클라이언트 생성
+     * Resolve Twilio client: override credentials 가 기본값과 다르면 새 클라이언트 생성.
+     *
+     * **자격증명 쌍 전체를 비교한다.** 예전에는 `accountSid` 만 비교해서, 같은 계정에서
+     * `authToken` 만 바뀐 채널 설정이 조용히 무시됐다 — 조건이 거짓이 되어 env 로 만든
+     * 기본 클라이언트로 떨어졌기 때문이다. 2026-08-03 에 Auth Token 을 재발급하고
+     * 채널 설정에 새 값을 넣었는데도 발송이 20003(Authenticate)으로 계속 죽은 원인이
+     * 이것이었고, SSM + 재배포 말고는 반영할 방법이 없었다.
+     *
+     * 계정이 하나뿐인 지금 구성에서는 `accountSid` 비교가 **항상** 거짓이라, 사실상
+     * 채널별 자격증명 기능 전체가 동작하지 않는 상태였다.
      */
     resolveTwilioClient(credentials) {
         const twilio = credentials?.twilio;
-        if (twilio?.accountSid &&
-            twilio?.authToken &&
-            twilio.accountSid !== this.accountSid) {
+        const whatsappNumber = twilio?.whatsappNumber ?? this.whatsappNumber;
+        if (twilio?.accountSid && twilio?.authToken) {
+            // 기본 자격증명과 **완전히** 같을 때만 기본 클라이언트를 재사용한다.
+            if (twilio.accountSid === this.accountSid &&
+                twilio.authToken === this.authToken) {
+                return { client: this.client, whatsappNumber };
+            }
             return {
-                client: new twilio_1.Twilio(twilio.accountSid, twilio.authToken),
-                whatsappNumber: twilio.whatsappNumber ?? this.whatsappNumber,
+                client: this.getOrCreateClient(twilio.accountSid, twilio.authToken),
+                whatsappNumber,
             };
         }
-        return {
-            client: this.client,
-            whatsappNumber: twilio?.whatsappNumber ?? this.whatsappNumber,
-        };
+        return { client: this.client, whatsappNumber };
+    }
+    /**
+     * 자격증명 쌍당 Twilio 클라이언트 하나. 토큰이 로테이션되면 새 키가 생기고 옛
+     * 항목은 남는데, 상한에 닿으면 통째로 비워 무한 증가를 막는다(채널 수가 적어
+     * LRU 를 둘 만큼의 이득이 없다). 키에 토큰이 들어가므로 로깅하지 않는다.
+     */
+    getOrCreateClient(accountSid, authToken) {
+        const key = `${accountSid}:${authToken}`;
+        const cached = this.clientCache.get(key);
+        if (cached)
+            return cached;
+        if (this.clientCache.size >= WhatsAppAdapter_1.MAX_CACHED_CLIENTS) {
+            this.clientCache.clear();
+        }
+        const client = new twilio_1.Twilio(accountSid, authToken);
+        this.clientCache.set(key, client);
+        return client;
     }
     /**
      * Send message - auto-detects API based on destination format
