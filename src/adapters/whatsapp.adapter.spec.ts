@@ -73,6 +73,69 @@ describe('WhatsAppAdapter', () => {
     });
   });
 
+  /**
+   * 채널 설정이 들고 있는 자격증명이 실제로 쓰이는지 고정한다.
+   *
+   * 예전 구현은 `accountSid` 만 비교해서, 계정이 하나뿐인 구성(= 현재 운영)에서는
+   * 조건이 항상 거짓이라 채널별 자격증명이 통째로 무시됐다. Auth Token 을 재발급하고
+   * 채널 설정에 새 값을 넣어도 발송이 20003 으로 계속 죽었던 이유다.
+   */
+  describe('채널별 자격증명 override', () => {
+    const send = (credentials?: Parameters<typeof adapter.sendMessage>[2]) =>
+      adapter.sendMessage('+821012345678', { type: 'text', text: 'hi' }, credentials);
+
+    beforeEach(() => mockCreate.mockResolvedValue({ sid: 'SM1' }));
+
+    it('같은 계정이라도 authToken 이 다르면 새 클라이언트를 만든다', async () => {
+      const { Twilio } = jest.requireMock('twilio') as { Twilio: jest.Mock };
+      Twilio.mockClear();
+
+      await send({
+        twilio: {
+          accountSid: 'AC123456789', // 기본값과 동일
+          authToken: 'rotated-token', // 토큰만 교체
+        },
+      });
+
+      expect(Twilio).toHaveBeenCalledWith('AC123456789', 'rotated-token');
+    });
+
+    it('자격증명이 기본값과 완전히 같으면 클라이언트를 새로 만들지 않는다', async () => {
+      const { Twilio } = jest.requireMock('twilio') as { Twilio: jest.Mock };
+      Twilio.mockClear();
+
+      await send({
+        twilio: { accountSid: 'AC123456789', authToken: 'auth-token-123' },
+      });
+
+      expect(Twilio).not.toHaveBeenCalled();
+    });
+
+    it('같은 자격증명으로 반복 발송해도 클라이언트를 한 번만 만든다', async () => {
+      const { Twilio } = jest.requireMock('twilio') as { Twilio: jest.Mock };
+      Twilio.mockClear();
+
+      const creds = {
+        twilio: { accountSid: 'AC999', authToken: 'tok-999' },
+      };
+      await send(creds);
+      await send(creds);
+      await send(creds);
+
+      // 캐시가 없으면 발송 건마다 새 HTTP 에이전트가 생겨 keep-alive 가 깨진다.
+      expect(Twilio).toHaveBeenCalledTimes(1);
+    });
+
+    it('override 에 authToken 이 없으면 기본 클라이언트를 쓴다', async () => {
+      const { Twilio } = jest.requireMock('twilio') as { Twilio: jest.Mock };
+      Twilio.mockClear();
+
+      await send({ twilio: { accountSid: 'AC999' } as never });
+
+      expect(Twilio).not.toHaveBeenCalled();
+    });
+  });
+
   describe('sendMessage', () => {
     it('should send a text message successfully', async () => {
       mockCreate.mockResolvedValueOnce({ sid: 'SM123456789' });
