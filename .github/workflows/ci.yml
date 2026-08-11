@@ -1,0 +1,74 @@
+name: ci
+
+# DEV-171: 게이트가 아예 없던 repo 에 PR CI 를 추가한다.
+# 테스트 스위트(6 suites / 109 tests)는 이미 있었으나 CI 에서 안 돌아 방어선이
+# 비어 있었다. 이 패키지는 라이브러리로 끝나지 않고 production 서비스 3개
+# (datahub-server / mywave-server / myderma-server)가 git 의존으로 직접 소비하므로,
+# main 에 깨진 코드가 들어가면 게이트 없이 그대로 전파된다.
+#
+# 러너: GitHub-hosted (ubuntu-latest).
+#   이 repo 는 public 이라 hosted Actions 가 무료·무제한이다. DEV-139 형제 repo 들이
+#   쓰는 self-hosted 러너 그룹('Private repos only')은 이름 그대로 private repo 전용이고,
+#   거기 넣으면 public repo 의 fork PR 이 prod 배포 파이프라인과 공유하는 host 캐시
+#   볼륨(DEV-37)에 닿는 경로가 생긴다. 과금 0 이라는 목적은 hosted 로도 그대로 달성된다.
+#
+# base 브랜치 = main. 이 repo 에는 develop / release 가 없다(전 PR base=main).
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          # 소비처 3개 서비스의 런타임과 일치(DEV-145: node 20 EOL 대응).
+          # package.json engines 는 >=20 이지만 실제 소비 환경 기준으로 22 에서 검증한다.
+          node-version: 22
+          # hosted 러너라 GHA 캐시가 순이득이다. DEV-141 의 'cache: npm 제거' 결론은
+          # host 캐시 볼륨과 이중이 되는 self-hosted 한정이므로 여기엔 적용되지 않는다.
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Run unit tests
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+      # 소비처는 컴파일 결과물인 dist/ 를 repo 에 커밋된 상태 그대로 받아간다.
+      # 따라서 src 만 통과시켜도 dist 가 낡아 있으면 소비처에는 옛 코드가 나간다.
+      # 방금 만든 빌드 산출물과 커밋된 dist/ 가 다르면 실패시킨다(재빌드 후 커밋 필요).
+      - name: Verify committed dist/ is up to date
+        run: |
+          # git diff 만 쓰면 '새 파일이 추가됐는데 dist 를 커밋 안 한' 경우(untracked)를
+          # 놓치므로 status --porcelain 으로 수정·추가·삭제를 한 번에 본다.
+          drift="$(git status --porcelain -- dist)"
+          if [ -n "$drift" ]; then
+            echo "::error::커밋된 dist/ 가 src 빌드 결과와 다릅니다. 'npm run build' 후 dist/ 를 커밋하세요."
+            echo "$drift"
+            exit 1
+          fi
+          echo "dist/ 가 src 와 일치합니다."
