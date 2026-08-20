@@ -15,6 +15,23 @@ import {
 } from '../interfaces';
 import type { InstagramWebhookDto } from '../dto/instagram-webhook.dto';
 
+/**
+ * 아직 "실명"이 아닌 대화 이름인지 판정한다.
+ *
+ * 비어 있거나, 식별자/전화번호를 그대로 넣어둔 경우를 placeholder 로 본다:
+ *   - null / '' / 공백
+ *   - '+61417460236', '821020252266' 같은 번호 (웹훅 유실분 백필이 이렇게 채운다)
+ *   - 'whatsapp:+61417460236' 처럼 채널 접두어가 붙은 식별자
+ *
+ * 실명이 이미 있으면 false 를 돌려 덮어쓰지 않게 한다.
+ */
+export function isPlaceholderContactName(name?: string | null): boolean {
+  const v = (name ?? '').trim();
+  if (!v) return true;
+  const bare = v.replace(/^(whatsapp|instagram|messenger):/i, '').trim();
+  return /^\+?[\d\s().-]+$/.test(bare);
+}
+
 @Injectable()
 export class WebhookService {
   private readonly logger = new Logger(WebhookService.name);
@@ -256,11 +273,18 @@ export class WebhookService {
       this.logger.log(`Backfilled channelConfigId=${channelConfigId} for conversation ${conversation.id}`);
     }
 
-    if (channel === 'instagram' && contactName && !conversation.contactName) {
-      // Update existing conversation with resolved username
+    // 이름은 대화 생성 시에만 넣었기 때문에, 한번 비어 있으면 계속 비어 있었다.
+    // (WhatsApp ProfileName·Instagram username 둘 다 매 인바운드 웹훅에 실려 온다.)
+    // 그래서 "아직 실명이 아닌" 대화는 다음 인바운드에서 채워 넣는다.
+    //
+    // 실명이 이미 있으면 절대 덮지 않는다 — 상대가 프로필명을 바꿔도 CS 가 알던 이름이
+    // 흔들리면 안 되고, 수동으로 고쳐둔 이름을 되돌리는 사고도 막아야 한다.
+    if (contactName && isPlaceholderContactName(conversation.contactName)) {
       await this.conversationRepository.update(conversation.id, { contactName });
       conversation.contactName = contactName;
-      this.logger.log(`Updated conversation ${conversation.id} with Instagram username: ${contactName}`);
+      this.logger.log(
+        `Filled contactName for conversation ${conversation.id} (${channel}): ${contactName}`,
+      );
     }
 
     // Create message (use resolved contactName for inbound messages)
