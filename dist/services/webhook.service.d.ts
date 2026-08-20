@@ -6,6 +6,17 @@ import { MessageService } from './message.service';
 import type { IConversationRepository, IMessageRepository, IContactChannelRepository, ResolvedChannelConfig } from '../interfaces';
 import { type OmnichannelModuleOptions } from '../interfaces';
 import type { InstagramWebhookDto } from '../dto/instagram-webhook.dto';
+/**
+ * 아직 "실명"이 아닌 대화 이름인지 판정한다.
+ *
+ * 비어 있거나, 식별자/전화번호를 그대로 넣어둔 경우를 placeholder 로 본다:
+ *   - null / '' / 공백
+ *   - '+61417460236', '821020252266' 같은 번호 (웹훅 유실분 백필이 이렇게 채운다)
+ *   - 'whatsapp:+61417460236' 처럼 채널 접두어가 붙은 식별자
+ *
+ * 실명이 이미 있으면 false 를 돌려 덮어쓰지 않게 한다.
+ */
+export declare function isPlaceholderContactName(name?: string | null): boolean;
 export declare class WebhookService {
     private readonly options;
     private readonly conversationRepository;
