@@ -180,7 +180,13 @@ let MessageService = MessageService_1 = class MessageService {
             replyToPreview,
             status: 'sent',
             senderName: senderName ?? null,
-            metadata: null,
+            // 어느 템플릿을 보냈는지는 이 시점에만 알 수 있다. 저장하지 않으면 남는 것은
+            // `contentType='template'` 과 렌더된 본문뿐이고, 본문은 변수가 치환돼 있어
+            // 어느 마스터에서 왔는지 되짚을 수 없다(문구가 개정되면 더더욱).
+            // 호출부는 수동(CRM 템플릿 모달)·자동(예약 알림 등) 모두 이미 templateId 를 넘긴다.
+            metadata: dto.contentType === 'template' && dto.templateId
+                ? { templateSid: dto.templateId }
+                : null,
         });
         await this.conversationService.updateLastMessage(conversationId, dto.contentText?.substring(0, 100) ?? '[Media]', new Date());
         if (conversation.assignedUserId == null) {
