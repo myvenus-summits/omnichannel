@@ -322,6 +322,71 @@ describe('MessageService', () => {
       );
     });
 
+    // 어느 템플릿을 보냈는지는 발송 시점에만 알 수 있다 — 저장하지 않으면
+    // `content_type='template'` 과 렌더된 본문만 남아 복원할 길이 없다.
+    // 후속 발송(예: 폼 안내 뒤 리마인드)이 "그 템플릿이 언제 나갔나"를 기준으로 삼는다.
+    it('records the template SID in metadata so the sent template is identifiable', async () => {
+      mockWhatsAppAdapter.sendTemplateMessage.mockResolvedValue({
+        success: true,
+        channelMessageId: 'SM_TPL124',
+      });
+      mockMessageRepository.create.mockResolvedValue({
+        id: 4,
+        conversationId: 1,
+        channelMessageId: 'SM_TPL124',
+        direction: 'outbound',
+        senderName: null,
+        senderUserId: null,
+        contentType: 'template',
+        contentText: 'Hello John',
+        contentMediaUrl: null,
+        status: 'sent',
+        metadata: { templateSid: 'HX_WELCOME' },
+        createdAt: new Date(),
+      } as IMessage);
+
+      await service.sendMessage(1, {
+        contentType: 'template',
+        contentText: 'Hello John',
+        templateId: 'HX_WELCOME',
+        templateVariables: { name: 'John' },
+      });
+
+      expect(mockMessageRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          contentType: 'template',
+          metadata: { templateSid: 'HX_WELCOME' },
+        }),
+      );
+    });
+
+    it('leaves metadata null for non-template messages', async () => {
+      mockWhatsAppAdapter.sendMessage.mockResolvedValue({
+        success: true,
+        channelMessageId: 'SM_TXT1',
+      });
+      mockMessageRepository.create.mockResolvedValue({
+        id: 5,
+        conversationId: 1,
+        channelMessageId: 'SM_TXT1',
+        direction: 'outbound',
+        senderName: null,
+        senderUserId: null,
+        contentType: 'text',
+        contentText: 'hi',
+        contentMediaUrl: null,
+        status: 'sent',
+        metadata: null,
+        createdAt: new Date(),
+      } as IMessage);
+
+      await service.sendMessage(1, { contentType: 'text', contentText: 'hi' });
+
+      expect(mockMessageRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({ metadata: null }),
+      );
+    });
+
     it('should throw error when message send fails', async () => {
       mockWhatsAppAdapter.sendMessage.mockResolvedValue({
         success: false,
