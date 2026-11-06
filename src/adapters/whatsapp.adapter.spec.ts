@@ -543,6 +543,65 @@ describe('WhatsAppAdapter', () => {
       expect(result?.message?.metadata).not.toHaveProperty('referral');
     });
 
+    // MD-775: Twilio 는 광고가 아닌 메시지에도 ReferralNumMedia='0' 을 보낸다.
+    // 이것만으로 referral 을 만들면 대화의 첫 유입 자리를 차지해 뒤의 광고 클릭이 대화에 안 남는다.
+    it('should not attach referral when ReferralNumMedia is the only referral field (MD-775)', () => {
+      const payload = {
+        SmsMessageSid: 'SM555',
+        MessageSid: 'SM555',
+        From: 'whatsapp:+821012345678',
+        To: 'whatsapp:+14155551234',
+        ProfileName: 'Jane Doe',
+        Body: 'Halo kak',
+        NumMedia: '0',
+        ReferralNumMedia: '0',
+      };
+
+      const result = adapter.parseWebhookPayload(payload);
+
+      expect(result?.type).toBe('message');
+      expect(result?.message?.metadata).not.toHaveProperty('referral');
+    });
+
+    it('should treat ReferralNumMedia with empty-string siblings as no referral', () => {
+      const payload = {
+        SmsMessageSid: 'SM556',
+        MessageSid: 'SM556',
+        From: 'whatsapp:+821012345678',
+        To: 'whatsapp:+14155551234',
+        Body: 'Halo',
+        NumMedia: '0',
+        ReferralNumMedia: '0',
+        ReferralSourceId: '',
+        ReferralCtwaClid: '',
+      };
+
+      const result = adapter.parseWebhookPayload(payload);
+
+      expect(result?.message?.metadata).not.toHaveProperty('referral');
+    });
+
+    it('should keep a non-ad post/link referral that has content beyond numMedia', () => {
+      // prod 에 실제로 있는 모양: wa.me·게시물 링크로 들어온 대화(광고 아님).
+      const payload = {
+        SmsMessageSid: 'SM557',
+        MessageSid: 'SM557',
+        From: 'whatsapp:+821012345678',
+        To: 'whatsapp:+14155551234',
+        Body: 'Halo',
+        NumMedia: '0',
+        ReferralNumMedia: '0',
+        ReferralSourceUrl: 'https://wa.me/message/ABC',
+      };
+
+      const result = adapter.parseWebhookPayload(payload);
+
+      expect(result?.message?.metadata?.referral).toEqual({
+        sourceUrl: 'https://wa.me/message/ABC',
+        numMedia: '0',
+      });
+    });
+
     it('should capture a quick-reply button tap id into message metadata', () => {
       // MV-497: an interactive template button tap arrives as a normal inbound
       // message — Body is the button's visible title, ButtonPayload is the stable

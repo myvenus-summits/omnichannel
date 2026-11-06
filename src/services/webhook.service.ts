@@ -32,6 +32,59 @@ export function isPlaceholderContactName(name?: string | null): boolean {
   return /^\+?[\d\s().-]+$/.test(bare);
 }
 
+function nonEmptyString(value: unknown): value is string {
+  return typeof value === 'string' && value.trim() !== '';
+}
+
+/**
+ * 광고(유료 유입)로 귀속된 referral 인지 판정한다 — 대화 referral 의 첫 유입 보호 대상.
+ *
+ * `ctwaClid` · `sourceId` 중 하나가 있거나 `sourceType` 이 `ad`·`ads` 면 광고로 본다.
+ * 서비스들이 광고를 가르는 판정의 합집합이다 — 어느 한 곳이라도 광고로 읽는 referral 은
+ * 덮지 않아야, 그 서비스가 이미 그 값으로 보낸 이벤트·집계와 어긋나지 않는다.
+ * 예: 랜딩 유입을 표시하려고 서비스가 직접 쓰는 `{ sourceId, sourceType: 'landing' }` 은
+ * `ctwaClid` 가 없지만 광고다(덮으면 같은 리드로 Lead 이벤트가 두 번 나간다).
+ *
+ * 광고가 아닌 것: `{ numMedia }` 뿐인 것, `sourceId` 없는 게시물(`sourceType: 'post'`)·wa.me 링크(`sourceUrl` 만).
+ * `sourceId` 가 있으면 `sourceType` 이 무엇이든 광고로 본다 — 일부 서비스가 `sourceId` 만으로
+ * 광고를 판정하므로, 그런 referral 을 바꾸면 그 서비스의 귀속이 바뀐다(보수적으로 보호).
+ */
+export function isAdReferral(referral: unknown): boolean {
+  if (!referral || typeof referral !== 'object') return false;
+  const r = referral as Record<string, unknown>;
+  if (nonEmptyString(r.ctwaClid) || nonEmptyString(r.sourceId)) return true;
+  const sourceType = typeof r.sourceType === 'string' ? r.sourceType.trim().toLowerCase() : '';
+  return sourceType === 'ad' || sourceType === 'ads';
+}
+
+/**
+ * 출처를 말해 주는 칸이 하나라도 있는 referral 인지 판정한다.
+ * `numMedia` 는 광고가 아닌 메시지에도 `'0'` 으로 실려 오므로 출처 정보로 치지 않는다(MD-775).
+ */
+function hasReferralContent(referral: unknown): boolean {
+  if (!referral || typeof referral !== 'object') return false;
+  return Object.entries(referral as Record<string, unknown>).some(
+    ([key, value]) => key !== 'numMedia' && value !== undefined && value !== null && value !== '',
+  );
+}
+
+/**
+ * 인바운드 메시지의 referral 로 대화 referral 을 채울지(또는 바꿀지) 정한다.
+ *
+ * - 대화에 출처 정보가 있는 referral 이 없으면(비어 있거나 `{ numMedia }` 뿐) 채운다.
+ * - 대화 referral 이 광고가 아니고 메시지 referral 이 광고면 바꾼다 — 광고가 아닌 것이
+ *   먼저 자리를 잡아 뒤의 광고 클릭이 대화에 남지 않던 문제(MD-775).
+ * - 광고 referral 끼리는 첫 유입을 유지한다(덮지 않는다).
+ */
+export function shouldReplaceConversationReferral(
+  existingReferral: unknown,
+  messageReferral: unknown,
+): boolean {
+  if (!hasReferralContent(messageReferral)) return false;
+  if (!hasReferralContent(existingReferral)) return true;
+  return !isAdReferral(existingReferral) && isAdReferral(messageReferral);
+}
+
 @Injectable()
 export class WebhookService {
   private readonly logger = new Logger(WebhookService.name);
@@ -370,16 +423,15 @@ export class WebhookService {
       updateData.lastInboundAt = event.message.timestamp;
       // Click-to-WhatsApp ad referral: copy first-touch from the message
       // metadata onto the conversation so downstream attribution (e.g. CAPI,
-      // sheet exports) can read ad context per-conversation. First-touch only —
-      // never overwrite an existing referral. No-op for non-ad messages, so
-      // organic traffic and other consumers are unaffected.
+      // sheet exports) can read ad context per-conversation. No-op for messages
+      // without a referral, so organic traffic is unaffected.
       const messageReferral = (
         event.message.metadata as Record<string, unknown> | null | undefined
       )?.referral;
       const existingReferral = (
         conversation.metadata as Record<string, unknown> | null | undefined
       )?.referral;
-      if (messageReferral && !existingReferral) {
+      if (shouldReplaceConversationReferral(existingReferral, messageReferral)) {
         updateData.metadata = {
           ...(conversation.metadata ?? {}),
           referral: messageReferral,

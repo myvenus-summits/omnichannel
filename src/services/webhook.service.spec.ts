@@ -288,6 +288,97 @@ describe('WebhookService', () => {
       );
     });
 
+    describe('conversation referral (MD-775)', () => {
+      const AD_REFERRAL = { ctwaClid: 'ARclid', sourceId: '1202', sourceType: 'ad', numMedia: '0' };
+
+      const runInbound = async (
+        existingMetadata: Record<string, unknown> | null,
+        messageMetadata: Record<string, unknown> | undefined,
+      ) => {
+        mockWhatsAppAdapter.parseWebhookPayload.mockReturnValue({
+          type: 'message' as const,
+          channelConversationId: 'CH123',
+          contactIdentifier: '+821012345678',
+          message: {
+            channelMessageId: 'IM789',
+            direction: 'inbound' as const,
+            senderName: 'Customer',
+            contentType: 'text' as const,
+            contentText: 'Saya lihat iklan',
+            timestamp: new Date(),
+            metadata: messageMetadata,
+          },
+        });
+        const existing: IConversation = {
+          id: 7,
+          channel: 'whatsapp',
+          channelConversationId: 'CH123',
+          contactIdentifier: '+821012345678',
+          contactName: 'Customer',
+          status: 'open',
+          tags: [],
+          assignedUserId: null,
+          unreadCount: 0,
+          lastMessageAt: null,
+          lastMessagePreview: null,
+          metadata: existingMetadata,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        };
+        mockConversationRepository.findByChannelConversationId.mockResolvedValue(existing);
+        mockConversationRepository.update.mockResolvedValue({ ...existing, unreadCount: 1 });
+        mockMessageRepository.findByChannelMessageId.mockResolvedValue(null);
+        mockMessageRepository.create.mockResolvedValue({
+          id: 9,
+          conversationId: 7,
+          channelMessageId: 'IM789',
+          direction: 'inbound',
+          senderName: 'Customer',
+          senderUserId: null,
+          contentType: 'text',
+          contentText: 'Saya lihat iklan',
+          contentMediaUrl: null,
+          status: 'delivered',
+          metadata: messageMetadata ?? null,
+          createdAt: new Date(),
+        });
+
+        await service.handleTwilioWebhook({ EventType: 'onMessageAdded' });
+        return mockConversationRepository.update.mock.calls.find(([id]) => id === 7)?.[1];
+      };
+
+      it('replaces a numMedia-only conversation referral with a later ad referral, keeping other metadata', async () => {
+        const update = await runInbound(
+          { referral: { numMedia: '0' }, keep: 'me' },
+          { referral: AD_REFERRAL },
+        );
+
+        expect(update?.metadata).toEqual({ referral: AD_REFERRAL, keep: 'me' });
+      });
+
+      it('keeps the first ad referral when a later ad referral arrives', async () => {
+        const first = { ctwaClid: 'ARfirst', sourceId: '1111', sourceType: 'ad' };
+        const update = await runInbound({ referral: first }, { referral: AD_REFERRAL });
+
+        expect(update).toBeDefined();
+        expect(update).not.toHaveProperty('metadata');
+      });
+
+      it('does not write a numMedia-only message referral onto an empty conversation', async () => {
+        const update = await runInbound(null, { referral: { numMedia: '0' } });
+
+        expect(update).toBeDefined();
+        expect(update).not.toHaveProperty('metadata');
+      });
+
+      it('does not touch conversation metadata for a message without referral', async () => {
+        const update = await runInbound({ referral: { numMedia: '0' } }, { waId: '821012345678' });
+
+        expect(update).toBeDefined();
+        expect(update).not.toHaveProperty('metadata');
+      });
+    });
+
     it('should not increment unread count for outbound messages', async () => {
       const mockEvent = {
         type: 'message' as const,

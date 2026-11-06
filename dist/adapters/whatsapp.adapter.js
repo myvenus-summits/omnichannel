@@ -444,11 +444,16 @@ let WhatsAppAdapter = class WhatsAppAdapter {
      * Extract Click-to-WhatsApp (CTWA) ad referral attributes from a Twilio
      * Messaging API webhook.
      *
-     * Twilio sends these fields ONLY when the inbound message originated from a
-     * Meta "Click to WhatsApp" ad (Instagram / Facebook). For organic messages
-     * none are present, so this returns `undefined` and the message metadata is
-     * left byte-for-byte unchanged — keeping behaviour identical for non-ad
-     * traffic across every service that consumes this package.
+     * Twilio sends the descriptive fields only when the inbound message carries a
+     * Meta referral (a "Click to WhatsApp" ad, or a post / wa.me link). For
+     * organic messages those are absent and this returns `undefined`, leaving the
+     * message metadata unchanged.
+     *
+     * Exception: `ReferralNumMedia` arrives on organic messages too (as `'0'`).
+     * On its own it says nothing about where the message came from, so a payload
+     * whose only referral field is `numMedia` is treated as "no referral" —
+     * otherwise `{ numMedia: '0' }` lands on the conversation as its first-touch
+     * referral and every consumer reads an organic chat as referred (MD-775).
      *
      * https://www.twilio.com/docs/messaging/guides/webhook-request
      */
@@ -471,7 +476,8 @@ let WhatsAppAdapter = class WhatsAppAdapter {
                 referral[key] = value;
             }
         }
-        return Object.keys(referral).length > 0 ? referral : undefined;
+        const hasReferralContent = Object.keys(referral).some((key) => key !== 'numMedia');
+        return hasReferralContent ? referral : undefined;
     }
     async fetchMessages(conversationId, options, credentials) {
         // Normalize: plain E164 ('+8210...') → 'whatsapp:+8210...'
